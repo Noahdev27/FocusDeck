@@ -56,7 +56,20 @@ Règles :
 - Pas de nouvelle dépendance sans justification (taille du bundle : budget dans le
   cahier des charges, ENF-PERF).
 
+## Hébergement
+
+Vercel (décision prise). `vercel.json` définit le fallback SPA, le cache des assets et les
+en-têtes de sécurité. **Tout nouveau domaine externe** (API, CDN, analytics, Supabase,
+Stripe…) doit être ajouté à la directive CSP correspondante de `vercel.json`, sinon il sera
+bloqué en production alors qu'il marche avec `vite dev`.
+
 ## Pièges connus
+
+- CSP : `style-src` autorise le hash `sha256-47DEQ…` (chaîne vide). Framer Motion
+  (`AnimatePresence mode="popLayout"`) insère un `<style>` vide puis ajoute ses règles via
+  `insertRule` ; sans ce hash, l'animation de suppression des tâches casse. Ne pas ajouter
+  `'unsafe-inline'`. Pour tester la CSP en local, injecter les en-têtes de `vercel.json`
+  via `context.route` dans Playwright (`vite preview` ne les applique pas).
 
 - Les tests Playwright avec `page.clock.install()` figent `requestAnimationFrame` pour
   **tout le contexte** : les animations de sortie (modales) ne se terminent pas. Utiliser

@@ -5,21 +5,27 @@
 Tu travailles sur FocusDeck. Lis `CLAUDE.md`, `docs/prompts/README.md` et
 `docs/cahier-des-charges.md` §5 (SEC-3, OBS-1/2, PERF-2/3, RGPD-3), §6.5, §11.
 
-**Préalable** : confirmer l'hébergeur (Vercel par défaut) et qui crée le projet. Ne
-crée ni projet ni domaine sans accord explicite ; tu peux préparer toute la configuration.
+**Hébergeur : Vercel (décision prise).** `vercel.json` existe déjà avec le fallback SPA, le
+cache des assets et les en-têtes de sécurité ; pars de ce fichier. Utilise les outils MCP
+Vercel s'ils sont disponibles, sinon la CLI `vercel`. Demande avant de créer le projet
+Vercel, d'ajouter un domaine ou de promouvoir en production ; les déploiements de
+prévisualisation sur la branche de travail sont autorisés une fois le projet créé.
 
 **À faire**
-1. Configuration d'hébergement (`vercel.json` ou équivalent) : fallback SPA, cache long
-   immuable sur `/assets/*`, pas de cache sur `index.html` et le Service Worker.
-2. En-têtes de sécurité (SEC-3) : CSP stricte compatible avec Vite, Supabase, Stripe et
-   Sentry (lister les domaines), HSTS, `nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`,
-   `Permissions-Policy` minimale. Vérifier qu'aucune erreur CSP n'apparaît en console.
+1. Projet Vercel relié au dépôt GitHub (preset Vite, Node 22) : preview par PR,
+   production sur `main`. Vérifier `vercel.json` (ajouter `no-cache` sur le Service Worker
+   quand il existera).
+2. En-têtes de sécurité (SEC-3) : la CSP de `vercel.json` est volontairement minimale
+   (`'self'` uniquement). Y ajouter **exactement** les domaines nécessaires à Supabase
+   (`connect-src` https + wss), Stripe, Sentry et l'analytics. Vérifier en preview qu'aucun
+   événement `securitypolicyviolation` ne survient (voir le piège CSP dans `CLAUDE.md`).
 3. Sentry (ou équivalent) chargé à la demande, `beforeSend` qui supprime titres de tâches,
    noms de projets et e-mails (OBS-1) ; source maps envoyées en CI, non publiées.
-4. Analytics sans cookie (RGPD-3), désactivables, événements : cycle terminé, rapport
+4. Vercel Analytics / Speed Insights sans cookie (RGPD-3), désactivables, événements : cycle terminé, rapport
    exporté, inscription, passage Pro. Aucune donnée personnelle.
 5. Lighthouse CI dans GitHub Actions avec les seuils PERF-2 sur l'URL de prévisualisation.
-6. Environnements : preview par PR, production sur `main` ; `.env.example` à jour.
+6. Variables d'environnement déclarées dans Vercel (Preview et Production séparées) ;
+   `.env.example` à jour.
 7. Documenter dans `docs/deploiement.md` : mise en ligne, retour arrière, rotation des clés.
 
 **Critères d'acceptation**

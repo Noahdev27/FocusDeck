@@ -49,6 +49,7 @@ Kanban, pas de Gantt).
 | Alertes | Carillon Web Audio, onde visuelle, bandeau, titre d'onglet, notifications navigateur (permission) |
 | Tâches | CRUD, cochage animé, renommage, filtres, glisser-déposer, limite 200 tâches / 140 caractères |
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
+| Hébergement | Cible Vercel : `vercel.json` prêt (SPA, cache, CSP stricte validée en navigateur, HSTS…) |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
 | Qualité | TS strict, ESLint strict, 29 tests Vitest (logique pure + intégration), vérification Playwright manuelle |
 
@@ -339,9 +340,12 @@ Ordre recommandé : L0 → L1 → L7 (mise en ligne tôt, en mode local) → L2 
 1. **Nom de domaine** et marque définitive (« FocusDeck » est-il disponible ?).
 2. **Prix du plan Pro** (proposition : 4 €/mois, 36 €/an) et devise(s).
 3. **Projet Supabase** : création par le porteur (recommandé, région UE) ou via les outils
-   de l'agent avec son accord explicite.
-4. **Hébergeur** : Vercel (proposé) ou Netlify / Cloudflare Pages.
-5. **Fournisseur d'analytics** : Plausible (payant, UE) ou Vercel Analytics.
+   de l'agent avec son accord explicite. L'intégration Supabase de la marketplace Vercel peut
+   injecter automatiquement les variables d'environnement.
+4. ~~**Hébergeur**~~ — **tranché : Vercel** (16/10/2026). Configuration dans `vercel.json`
+   (fallback SPA, cache des assets, en-têtes de sécurité dont une CSP stricte).
+5. **Fournisseur d'analytics** : Vercel Analytics (recommandé, puisque l'hébergement est sur Vercel)
+   ou Plausible (UE). Penser à ajouter son domaine à la CSP.
 6. **Langue par défaut** de la landing : FR ou EN.
 
 ## 12. Glossaire
