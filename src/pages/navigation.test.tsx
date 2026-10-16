@@ -1,9 +1,17 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import App from '../App';
+import { loadReportsPage, loadSettingsPage, loadStatsPage } from '../routes';
 import { STORAGE_KEYS } from '../utils/constants';
 
 const desktopNav = () => screen.getAllByRole('navigation', { name: 'Navigation principale' })[0] as HTMLElement;
+
+// Les pages sont chargées à la demande : on compile leurs modules avant les tests pour que
+// le premier import (transformation + instrumentation de couverture, lente en CI) ne
+// dépasse pas le délai d'attente des requêtes `findBy*`.
+beforeAll(async () => {
+  await Promise.all([loadStatsPage(), loadReportsPage(), loadSettingsPage(), import('./NotFoundPage')]);
+});
 
 beforeEach(() => window.localStorage.clear());
 afterEach(cleanup);
