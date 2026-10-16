@@ -49,7 +49,7 @@ Kanban, pas de Gantt).
 | Alertes | Carillon Web Audio, onde visuelle, bandeau, titre d'onglet, notifications navigateur (permission) |
 | Tâches | CRUD, cochage animé, renommage, filtres, glisser-déposer, limite 200 tâches / 140 caractères |
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
-| Hébergement | Cible Vercel : `vercel.json` prêt (SPA, cache, CSP stricte validée en navigateur, HSTS…) |
+| Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
 | Qualité | TS strict, ESLint strict, 29 tests Vitest (logique pure + intégration), vérification Playwright manuelle |
 

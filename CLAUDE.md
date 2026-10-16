@@ -58,7 +58,12 @@ Règles :
 
 ## Hébergement
 
-Vercel (décision prise). `vercel.json` définit le fallback SPA, le cache des assets et les
+Vercel — projet `focusdeck` (`prj_PanNZm4STdn6PrqYc579nOkxf39t`, équipe
+`team_un5W8MqEmYvoJEtF7vg5DFmN`), production : https://focusdeck-one.vercel.app.
+Chaque push déclenche un déploiement. Branche de production actuelle :
+`claude/stoic-davinci-3vr3su` (à basculer sur `main` dans Settings → Git dès que `main`
+existe). Le réseau de l'environnement cloud bloque `*.vercel.app` : vérifier un déploiement
+avec l'outil MCP `web_fetch_vercel_url`. `vercel.json` définit le fallback SPA, le cache des assets et les
 en-têtes de sécurité. **Tout nouveau domaine externe** (API, CDN, analytics, Supabase,
 Stripe…) doit être ajouté à la directive CSP correspondante de `vercel.json`, sinon il sera
 bloqué en production alors qu'il marche avec `vite dev`.
