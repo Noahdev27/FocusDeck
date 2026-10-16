@@ -76,3 +76,9 @@ composants.
 
 React 19 · TypeScript (strict, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`)
 · Vite · Tailwind CSS v4 · Framer Motion · jsPDF · lucide-react · Vitest
+
+## Feuille de route
+
+- [`docs/cahier-des-charges.md`](docs/cahier-des-charges.md) — exigences, architecture cible, lots.
+- [`docs/prompts/`](docs/prompts/README.md) — prompts de développement, un par lot.
+- [`CLAUDE.md`](CLAUDE.md) — conventions et commandes pour les agents de code.
