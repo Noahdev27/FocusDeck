@@ -15,6 +15,8 @@ export interface TimerSettings {
   /** Volume entre 0 et 1. */
   volume: number;
   notificationsEnabled: boolean;
+  /** Mesure d'audience anonyme, sans cookie (RGPD-3). */
+  analyticsEnabled: boolean;
 }
 
 /** État sérialisable du minuteur (persisté pour survivre à un rechargement). */

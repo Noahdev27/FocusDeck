@@ -50,6 +50,7 @@ Kanban, pas de Gantt).
 | Tâches | CRUD, cochage animé, renommage, filtres, glisser-déposer, limite 200 tâches / 140 caractères |
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
 | Architecture (L1 ✅) | Couche de persistance `src/data/` (interface `FocusRepository`, implémentation locale, suite de contrat réutilisable), routes `/`, `/stats`, `/rapports`, `/reglages` avec pages secondaires chargées à la demande, navigation en onglets (desktop) et barre basse (mobile) |
+| Observabilité (L7 ✅) | Sentry chargé à la demande avec filtrage des données personnelles (actif dès que `VITE_SENTRY_DSN` est défini), Vercel Analytics + Speed Insights sans cookie et désactivables, Lighthouse CI (perf 0,96 / a11y 1 / bonnes pratiques 1), audit scripté des en-têtes (note A), guide `docs/deploiement.md` |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
 | Qualité (L0 ✅) | TS strict, ESLint strict, 49 tests Vitest (couverture 91 %, `utils/` 97 %, seuils bloquants), 6 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (137 kB / 180 kB), CI GitHub Actions |
@@ -306,7 +307,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 | **L4** | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07, EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |
 | **L5** | PWA, notifications SW, thème clair, i18n, sons, onboarding | EF-X02..X06, EF-T05 | L1 | `05-pwa-theme-i18n.md` |
 | **L6** | SaaS : plans, Stripe, droits serveur, landing, PDF personnalisé | EF-S01..S06, EF-R05, SEC-5 | L2, L3 | `06-saas-stripe.md` |
-| **L7** | Déploiement, en-têtes de sécurité, Sentry, Lighthouse CI | SEC-3, OBS-1/2, PERF-2/3 | L0 | `07-deploiement-observabilite.md` |
+| **L7** ✅ | Déploiement, en-têtes de sécurité, Sentry, Lighthouse CI | SEC-3, OBS-1/2, PERF-2/3 | L0 | `07-deploiement-observabilite.md` |
 | **L8** | RGPD, e-mails, partage, intégrations | EF-C07, EF-R06/R07, EF-I01/I02, RGPD-* | L2 | `08-rgpd-emails-integrations.md` |
 
 Ordre recommandé : L0 → L1 → L7 (mise en ligne tôt, en mode local) → L2 → L4 → L3 → L5 → L6 → L8.
@@ -352,9 +353,11 @@ Ordre recommandé : L0 → L1 → L7 (mise en ligne tôt, en mode local) → L2 
    injecter automatiquement les variables d'environnement.
 4. ~~**Hébergeur**~~ — **tranché : Vercel** (16/10/2026). Configuration dans `vercel.json`
    (fallback SPA, cache des assets, en-têtes de sécurité dont une CSP stricte).
-5. **Fournisseur d'analytics** : Vercel Analytics (recommandé, puisque l'hébergement est sur Vercel)
-   ou Plausible (UE). Penser à ajouter son domaine à la CSP.
-6. **Langue par défaut** de la landing : FR ou EN.
+5. ~~**Fournisseur d'analytics**~~ — **tranché : Vercel Analytics + Speed Insights** (lot L7),
+   servis par le même domaine (`/_vercel/…`), aucune entrée CSP supplémentaire.
+6. **Compte Sentry** : à créer par le porteur (région UE), puis renseigner `VITE_SENTRY_DSN`
+   dans Vercel (voir `docs/deploiement.md`).
+7. **Langue par défaut** de la landing : FR ou EN.
 
 ## 12. Glossaire
 

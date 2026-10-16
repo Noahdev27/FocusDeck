@@ -5,6 +5,7 @@ import type { DailyReport, ReportFormat } from '../../types';
 import { downloadText } from '../../utils/download';
 import { exportReportPdf } from '../../utils/pdf';
 import { reportFilename, reportToMarkdown } from '../../utils/report';
+import { reportError, trackEvent } from '../../observability';
 import { cn } from '../../utils/cn';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
@@ -47,13 +48,16 @@ export function ReportDialog({ open, onClose, report }: ReportDialogProps) {
     setError(null);
     if (format === 'markdown') {
       downloadText(markdown, reportFilename(report, 'md'), 'text/markdown');
+      trackEvent({ name: 'report_exported', properties: { format: 'markdown' } });
       return;
     }
     setExporting(true);
     try {
       await exportReportPdf(report);
+      trackEvent({ name: 'report_exported', properties: { format: 'pdf' } });
     } catch (cause) {
       console.error(cause);
+      reportError(cause);
       setError('La génération du PDF a échoué. Réessayez ou exportez en Markdown.');
     } finally {
       setExporting(false);

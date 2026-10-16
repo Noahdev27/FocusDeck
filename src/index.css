@@ -11,6 +11,16 @@
   --color-ink-600: #2a2a3b;
 }
 
+@keyframes halo {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
 @layer base {
   :root {
     color-scheme: dark;

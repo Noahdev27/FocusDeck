@@ -40,17 +40,25 @@ describe('LocalRepository — spécificités', () => {
       '{"mode":"shortBreak","status":"idle","remainingMs":300000,"endsAt":null,"durationMs":300000,"startedAt":null,"cyclesInSet":1}',
   };
 
-  it('migration nulle : relit les données v0.1 et les réécrit à l’identique', async () => {
+  // Réglages ajoutés depuis la v0.1 : ils prennent leur valeur par défaut, sans changement
+  // de version du format (ajout compatible).
+  const ADDED_SETTINGS = { analyticsEnabled: true };
+  const expected = (key: string): unknown => {
+    const parsed: unknown = JSON.parse(V01_DATA[key] ?? 'null');
+    return key === STORAGE_KEYS.settings ? { ...(parsed as object), ...ADDED_SETTINGS } : parsed;
+  };
+
+  it('migration nulle : relit les données v0.1 sans perte et les réécrit à l’identique', async () => {
     const { storage, repository } = createHarness();
     for (const [key, raw] of Object.entries(V01_DATA)) storage.setItem(key, raw);
 
     for (const key of ['settings', 'tasks', 'logs', 'timer'] as const) {
       const value = repository.read(key);
-      expect(value).toEqual(JSON.parse(V01_DATA[STORAGE_KEYS[key]] ?? 'null'));
+      expect(value).toEqual(expected(STORAGE_KEYS[key]));
       await repository.write(key, value as never);
     }
-    for (const [key, raw] of Object.entries(V01_DATA)) {
-      expect(JSON.parse(storage.getItem(key) ?? 'null')).toEqual(JSON.parse(raw));
+    for (const key of Object.keys(V01_DATA)) {
+      expect(JSON.parse(storage.getItem(key) ?? 'null')).toEqual(expected(key));
     }
   });
 

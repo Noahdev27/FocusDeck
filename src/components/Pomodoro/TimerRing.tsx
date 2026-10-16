@@ -1,7 +1,8 @@
 import { motion } from 'framer-motion';
 import type { ReactNode } from 'react';
 import type { TimerMode } from '../../types';
-import { MODE_META } from '../../utils/constants';
+import { MODE_META, TIMER_MODES } from '../../utils/constants';
+import { cn } from '../../utils/cn';
 
 interface TimerRingProps {
   mode: TimerMode;
@@ -26,16 +27,18 @@ export function TimerRing({ mode, progress, running, pulseKey, children }: Timer
 
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[19rem] sm:max-w-[20rem]">
-      {/* Halo */}
-      <motion.div
-        aria-hidden
-        className="absolute inset-6 rounded-full blur-3xl"
-        animate={{ backgroundColor: meta.glow, scale: running ? [1, 1.06, 1] : 1 }}
-        transition={{
-          backgroundColor: { duration: 0.8 },
-          scale: running ? { duration: 4, repeat: Infinity, ease: 'easeInOut' } : { duration: 0.6 },
-        }}
-      />
+      {/* Halo : un calque par mode, transition d'opacité et pulsation en CSS (composées par le GPU). */}
+      {TIMER_MODES.map((item) => (
+        <div
+          key={item}
+          aria-hidden
+          className={cn(
+            'absolute inset-6 rounded-full blur-3xl transition-opacity duration-700',
+            running && item === mode && 'motion-safe:animate-[halo_4s_ease-in-out_infinite]',
+          )}
+          style={{ backgroundColor: MODE_META[item].glow, opacity: item === mode ? 1 : 0 }}
+        />
+      ))}
       {/* Onde de fin de phase */}
       {pulseKey !== null && (
         <motion.div
@@ -52,8 +55,8 @@ export function TimerRing({ mode, progress, running, pulseKey, children }: Timer
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="relative size-full -rotate-90">
         <defs>
           <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1">
-            <motion.stop offset="0" animate={{ stopColor: meta.from }} transition={{ duration: 0.8 }} />
-            <motion.stop offset="1" animate={{ stopColor: meta.to }} transition={{ duration: 0.8 }} />
+            <motion.stop offset="0" initial={false} animate={{ stopColor: meta.from }} transition={{ duration: 0.8 }} />
+            <motion.stop offset="1" initial={false} animate={{ stopColor: meta.to }} transition={{ duration: 0.8 }} />
           </linearGradient>
         </defs>
         <circle cx={center} cy={center} r={RADIUS} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={STROKE} />

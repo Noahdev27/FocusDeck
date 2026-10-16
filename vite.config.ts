@@ -2,9 +2,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
+
+// Source maps : générées uniquement quand elles peuvent être envoyées à Sentry,
+// puis supprimées du build — jamais publiées (OBS-1).
+const uploadSourceMaps = Boolean(process.env.SENTRY_AUTH_TOKEN);
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  build: { sourcemap: uploadSourceMaps ? 'hidden' : false },
+  plugins: [
+    react(),
+    tailwindcss(),
+    uploadSourceMaps &&
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: process.env.SENTRY_PROJECT,
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        sourcemaps: { filesToDeleteAfterUpload: ['dist/**/*.map'] },
+        telemetry: false,
+      }),
+  ],
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],

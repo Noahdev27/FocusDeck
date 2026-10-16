@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   soundEnabled: true,
   volume: 0.6,
   notificationsEnabled: false,
+  analyticsEnabled: true,
 };
 
 /** Bornes de validation des réglages (inclusives). */

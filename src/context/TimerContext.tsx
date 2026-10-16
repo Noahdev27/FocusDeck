@@ -24,6 +24,7 @@ import {
 } from '../utils/timer';
 import { playChime, unlockAudio } from '../utils/sound';
 import { sendNotification } from '../utils/notify';
+import { trackEvent } from '../observability';
 import { useFocus } from './FocusContext';
 
 export interface PhaseCompletion {
@@ -118,6 +119,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const finished = snapshot.mode;
     const nextMode = transition.next.mode;
     setLastCompletion({ mode: finished, nextMode, at: Date.now() });
+    trackEvent({ name: 'cycle_completed', properties: { mode: finished } });
     if (current.soundEnabled) playChime(finished, current.volume);
     if (current.notificationsEnabled) {
       sendNotification(

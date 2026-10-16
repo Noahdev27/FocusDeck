@@ -22,6 +22,11 @@ npm run check       # typecheck + lint + coverage + build + size
 npm run e2e         # Playwright (après build) : parcours critiques, axe, CSP de vercel.json
 ```
 
+La CI exécute aussi **Lighthouse** (mobile, ≥ 0,95 en performance, accessibilité et bonnes
+pratiques) via `npx @lhci/cli` — outil volontairement non installé dans le projet
+(dépendances vulnérables). En local : `CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npx -y @lhci/cli@0.15.1 autorun` après `npm run build`.
+Déploiement, retour arrière et rotation des clés : `docs/deploiement.md`.
+
 Une modification n'est terminée que si `npm run check` et `npm run e2e` passent ; la CI
 GitHub Actions (`.github/workflows/ci.yml`) les exécute sur chaque PR et sur `main`.
 Les tests e2e appliquent les en-têtes de `vercel.json` et échouent sur toute erreur console,
@@ -48,6 +53,8 @@ src/
 ├── context/TimerContext.tsx    # Moteur du minuteur : ticks, fin de phase, alertes
 ├── data/                       # SEUL accès à la persistance : FocusRepository,
 │                               # LocalRepository, RepositoryProvider, usePersistentState
+├── observability/              # Sentry (erreurs) et Vercel Analytics, chargés à la demande ;
+│                               # privacy.ts filtre toute donnée personnelle avant envoi
 ├── hooks/                      # Raccourcis clavier, jour courant, titre du document
 ├── types/index.ts              # Types partagés
 └── utils/                      # Logique pure et testée : timer, logs, report, pdf, validation…
@@ -71,7 +78,13 @@ Règles :
 - Clés de stockage versionnées `focusdeck:v1:*` (`utils/constants.ts`). Changer un
   format = incrémenter la version + écrire une migration testée.
 - Animations : Framer Motion, `MotionConfig reducedMotion="user"` est actif.
-  Pas d'animation qui bloque une interaction.
+  Pas d'animation qui bloque une interaction. **Ne jamais animer en JavaScript la couleur,
+  le flou ou la taille de grands éléments floutés** (fond, halos) : empiler des calques et ne
+  faire varier que `opacity`/`transform` en CSS. Sinon le temps de blocage mobile explose
+  (2,2 s mesurées, contre 0,1 s après correction).
+- Observabilité : `reportError(erreur)` et `trackEvent({ name, properties })`
+  (`src/observability`) ; jamais de donnée personnelle (titre de tâche, e-mail…) dans les
+  propriétés d'un événement.
 - Contraste : texte secondaire en `text-zinc-400` minimum sur fond sombre (`zinc-500/600`
   échouent au contraste AA).
 - Accessibilité : rôles ARIA corrects (switch, tab, dialog, checkbox, timer), focus

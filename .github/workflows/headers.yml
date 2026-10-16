@@ -1,0 +1,22 @@
+name: En-têtes de production
+
+# Audit hebdomadaire des en-têtes de sécurité du site en ligne (SEC-3),
+# avec les mêmes critères que le test de vercel.json.
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: URL à auditer
+        default: https://focusdeck-one.vercel.app
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/security-headers.mjs "${{ inputs.url || 'https://focusdeck-one.vercel.app' }}"

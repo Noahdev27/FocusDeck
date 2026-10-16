@@ -1,6 +1,8 @@
-import { Suspense, useCallback, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Outlet } from 'react-router';
+import { useFocus } from '../../context/FocusContext';
 import { useTimer } from '../../context/TimerContext';
+import { setAnalyticsEnabled } from '../../observability';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useKeyboardShortcuts, type ShortcutMap } from '../../hooks/useKeyboardShortcuts';
 import { MODE_META } from '../../utils/constants';
@@ -14,6 +16,8 @@ import { MobileNav } from './MainNav';
 /** Gabarit commun à toutes les pages : fond, en-tête, navigation, dialogues globaux. */
 export function AppShell() {
   const timer = useTimer();
+  const { settings } = useFocus();
+  useEffect(() => setAnalyticsEnabled(settings.analyticsEnabled), [settings.analyticsEnabled]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
 

@@ -59,6 +59,7 @@ export function sanitizeSettings(input: unknown): TimerSettings {
     autoStartFocus: readBoolean(input, 'autoStartFocus', d.autoStartFocus),
     soundEnabled: readBoolean(input, 'soundEnabled', d.soundEnabled),
     notificationsEnabled: readBoolean(input, 'notificationsEnabled', d.notificationsEnabled),
+    analyticsEnabled: readBoolean(input, 'analyticsEnabled', d.analyticsEnabled),
   };
 }
 

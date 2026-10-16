@@ -108,6 +108,15 @@ export function SettingsForm() {
           onChange={(enabled) => void onNotificationsChange(enabled)}
         />
       </section>
+
+      <section aria-label="Confidentialité" className="mt-6">
+        <Toggle
+          label="Mesure d'audience anonyme"
+          description="Sans cookie ni donnée personnelle : nombre de visites et de cycles, pour améliorer FocusDeck."
+          checked={settings.analyticsEnabled}
+          onChange={(analyticsEnabled) => updateSettings({ analyticsEnabled })}
+        />
+      </section>
     </>
   );
 }
