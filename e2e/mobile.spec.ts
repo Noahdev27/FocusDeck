@@ -5,6 +5,8 @@ test('mobile : pas de défilement horizontal, actions atteignables', async ({ pa
   void problems;
   await page.goto('/');
   await addTasks(page, ['Une tâche au titre volontairement très long pour vérifier la troncature sur mobile']);
+  // Le message « liste vide » disparaît en fondu : attendre sa sortie avant les contrôles.
+  await expect(page.getByText(/Découpez votre journée/)).toBeHidden();
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth).toBeLessThanOrEqual(390);
 

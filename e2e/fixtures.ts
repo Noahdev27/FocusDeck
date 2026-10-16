@@ -55,6 +55,13 @@ export async function addTasks(page: Page, titles: string[]): Promise<void> {
 
 /** Vérifie l'absence de violation d'accessibilité sérieuse ou critique (A11Y-5). */
 export async function expectNoA11yViolations(page: Page, include?: string): Promise<void> {
+  // Un élément en plein fondu (entrée/sortie) a un contraste transitoire : on attend la fin
+  // des animations finies avant d'analyser (les animations en boucle sont ignorées).
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every((animation) => animation.playState !== 'running' || animation.effect?.getTiming().iterations === Infinity),
+  );
   const builder = new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']);
   if (include) builder.include(include);
   const { violations } = await builder.analyze();
