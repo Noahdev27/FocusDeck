@@ -5,6 +5,7 @@ import { useFocus } from '../../context/FocusContext';
 import { MODE_META } from '../../utils/constants';
 import { formatClock, formatLongDate } from '../../utils/format';
 import { IconButton } from '../ui/Button';
+import { DesktopNav } from './MainNav';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -17,13 +18,15 @@ export function Header({ onOpenSettings, onOpenShortcuts }: HeaderProps) {
 
   return (
     <header className="flex items-center justify-between gap-4 py-5 sm:py-7">
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <Logo />
         <div>
           <p className="text-lg font-semibold tracking-tight text-white">FocusDeck</p>
           <p className="text-xs capitalize text-zinc-400">{formatLongDate(today)}</p>
         </div>
       </div>
+
+      <DesktopNav />
 
       <div className="flex items-center gap-1">
         <AnimatePresence>
@@ -32,7 +35,7 @@ export function Header({ onOpenSettings, onOpenShortcuts }: HeaderProps) {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="mr-2 hidden items-center gap-2 rounded-full bg-white/[0.05] px-3 py-1.5 text-xs ring-1 ring-white/10 sm:flex"
+              className="mr-2 hidden items-center gap-2 rounded-full bg-white/[0.05] px-3 py-1.5 text-xs ring-1 ring-white/10 sm:flex md:hidden xl:flex"
             >
               <span
                 className={status === 'running' ? 'size-2 animate-pulse rounded-full' : 'size-2 rounded-full opacity-50'}

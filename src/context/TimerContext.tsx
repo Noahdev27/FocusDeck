@@ -9,9 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 import type { TimerMode, TimerSnapshot, TimerStatus } from '../types';
-import { useLocalStorage } from '../hooks/useLocalStorage';
-import { MODE_META, STORAGE_KEYS } from '../utils/constants';
-import { sanitizeTimerSnapshot } from '../utils/validation';
+import { usePersistentState } from '../data';
+import { MODE_META } from '../utils/constants';
 import {
   completePhase,
   createIdleSnapshot,
@@ -61,11 +60,20 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     settingsRef.current = settings;
   }, [settings]);
 
-  const sanitizeSnapshot = useCallback(
-    (raw: unknown): TimerSnapshot => sanitizeTimerSnapshot(raw) ?? createIdleSnapshot('focus', settings),
-    [settings],
+  const [storedSnapshot, setStoredSnapshot] = usePersistentState('timer');
+  // Première visite : aucun minuteur enregistré, on part d'un Focus inactif.
+  const snapshot = useMemo(
+    () => storedSnapshot ?? createIdleSnapshot('focus', settings),
+    [storedSnapshot, settings],
   );
-  const [snapshot, setSnapshot] = useLocalStorage(STORAGE_KEYS.timer, sanitizeSnapshot);
+  const setSnapshot = useCallback(
+    (next: TimerSnapshot | ((previous: TimerSnapshot) => TimerSnapshot)) =>
+      setStoredSnapshot((previous) => {
+        const base = previous ?? createIdleSnapshot('focus', settingsRef.current);
+        return typeof next === 'function' ? next(base) : next;
+      }),
+    [setStoredSnapshot],
+  );
   const [now, setNow] = useState(() => Date.now());
   const [lastCompletion, setLastCompletion] = useState<PhaseCompletion | null>(null);
 

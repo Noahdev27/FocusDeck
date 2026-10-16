@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
+import { Outlet } from 'react-router';
 import { useTimer } from '../../context/TimerContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useKeyboardShortcuts, type ShortcutMap } from '../../hooks/useKeyboardShortcuts';
@@ -8,8 +9,10 @@ import { SettingsDialog } from '../Pomodoro/SettingsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { AmbientBackground } from './AmbientBackground';
 import { Header } from './Header';
+import { MobileNav } from './MainNav';
 
-export function AppShell({ children }: { children: ReactNode }) {
+/** Gabarit commun à toutes les pages : fond, en-tête, navigation, dialogues globaux. */
+export function AppShell() {
   const timer = useTimer();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -41,15 +44,28 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <AmbientBackground />
-      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-12 sm:px-6 lg:px-8">
+      <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-28 sm:px-6 md:pb-12 lg:px-8">
         <Header onOpenSettings={openSettings} onOpenShortcuts={openShortcuts} />
-        <main className="flex flex-1 flex-col gap-6">{children}</main>
+        <main className="flex flex-1 flex-col gap-6">
+          <Suspense fallback={<PageFallback />}>
+            <Outlet />
+          </Suspense>
+        </main>
         <footer className="pt-10 text-center text-xs text-zinc-400">
           Données stockées localement dans votre navigateur · FocusDeck
         </footer>
       </div>
+      <MobileNav />
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </>
+  );
+}
+
+function PageFallback() {
+  return (
+    <div role="status" aria-live="polite" className="glass mx-auto h-64 w-full max-w-2xl animate-pulse">
+      <span className="sr-only">Chargement de la page…</span>
+    </div>
   );
 }

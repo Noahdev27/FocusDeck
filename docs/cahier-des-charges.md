@@ -49,6 +49,7 @@ Kanban, pas de Gantt).
 | Alertes | Carillon Web Audio, onde visuelle, bandeau, titre d'onglet, notifications navigateur (permission) |
 | Tâches | CRUD, cochage animé, renommage, filtres, glisser-déposer, limite 200 tâches / 140 caractères |
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
+| Architecture (L1 ✅) | Couche de persistance `src/data/` (interface `FocusRepository`, implémentation locale, suite de contrat réutilisable), routes `/`, `/stats`, `/rapports`, `/reglages` avec pages secondaires chargées à la demande, navigation en onglets (desktop) et barre basse (mobile) |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
 | Qualité (L0 ✅) | TS strict, ESLint strict, 49 tests Vitest (couverture 91 %, `utils/` 97 %, seuils bloquants), 6 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (137 kB / 180 kB), CI GitHub Actions |
@@ -117,7 +118,7 @@ Worker) ; thème sombre uniquement ; français uniquement ; pas de compte ni de 
 | EF-X04 | Thème clair, sombre, système | S | L5 |
 | EF-X05 | Interface FR et EN, détection de la langue du navigateur | S | L5 |
 | EF-X06 | Onboarding : 3 écrans max, sautable, rejouable depuis l'aide | C | L5 |
-| EF-X07 | Navigation : Tableau de bord · Statistiques · Rapports · Réglages (routes URL) | M | L3 |
+| EF-X07 | Navigation : Tableau de bord · Statistiques · Rapports · Réglages (routes URL) | M | ✅ L1 |
 
 ### 4.6 Offre SaaS
 
@@ -232,6 +233,13 @@ interface FocusRepository {
 }
 ```
 
+> **Implémenté au lot L1** (`src/data/repository.ts`) sous une forme ajustée : lecture
+> synchrone `read(clé)` depuis le cache local (démarrage sans chargement, hors ligne d'abord),
+> écriture asynchrone `write(clé, valeur)` par collection (`settings`, `tasks`, `logs`, `timer`),
+> `listDays(from, to)` et `subscribe(listener)`. Les opérations unitaires (`upsertTasks`,
+> `appendSession`…) seront dérivées par `SyncedRepository` en calculant le différentiel avec
+> son cache : l'état React reste la seule source de vérité de l'UI.
+
 Les contextes ne connaissent que cette interface (injectée par un provider).
 Les identifiants restent des UUID générés côté client (déjà le cas), ce qui permet
 l'écriture hors ligne sans collision.
@@ -292,7 +300,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 | Lot | Contenu | Exigences | Dépend de | Prompt |
 | --- | --- | --- | --- | --- |
 | **L0** ✅ | Socle qualité : CI, e2e Playwright, couverture, axe-core | QUAL-2..4, A11Y-5 | — | `00-socle-qualite.md` |
-| **L1** | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
+| **L1** ✅ | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
 | **L2** | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
 | **L3** | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |
 | **L4** | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07, EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |

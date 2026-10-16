@@ -40,17 +40,27 @@ défilement horizontal (`document.documentElement.scrollWidth === 390`).
 
 ```
 src/
+├── App.tsx                     # Providers + routes (react-router, mode déclaratif)
+├── routes.ts                   # Liens de navigation + chargeurs paresseux des pages
+├── pages/                      # Une page par route (/, /stats, /rapports, /reglages, 404)
 ├── components/{Layout,Pomodoro,Todo,Summary,ui}/   # Présentation uniquement
 ├── context/FocusContext.tsx    # Réglages, tâches, journal des sessions (persistés)
 ├── context/TimerContext.tsx    # Moteur du minuteur : ticks, fin de phase, alertes
-├── hooks/                      # useLocalStorage (seul accès au stockage), raccourcis, etc.
+├── data/                       # SEUL accès à la persistance : FocusRepository,
+│                               # LocalRepository, RepositoryProvider, usePersistentState
+├── hooks/                      # Raccourcis clavier, jour courant, titre du document
 ├── types/index.ts              # Types partagés
-└── utils/                      # Logique pure et testée : timer, report, pdf, validation…
+└── utils/                      # Logique pure et testée : timer, logs, report, pdf, validation…
 ```
 
 Règles :
 - **La logique métier va dans des fonctions pures de `utils/`** (testées sans React).
   Les composants consomment les contextes et ne contiennent pas de règles métier.
+- **Persistance** : les contextes passent par `usePersistentState(clé)` (`src/data/`), jamais
+  par `localStorage` directement. Toute nouvelle implémentation de `FocusRepository`
+  (Supabase au lot L2) doit passer `describeRepositoryContract` (`src/data/repositoryContract.ts`).
+- **Pages** : chaque page secondaire est chargée paresseusement (`routes.ts`) ; le minuteur
+  vit au-dessus du routeur et continue de tourner d'une page à l'autre.
 - **Toute donnée lue d'une source externe** (localStorage, réseau, Supabase) passe par
   un sanitizer de `utils/validation.ts`. Jamais de `as MonType` sur un `JSON.parse`.
 - Le minuteur dérive le temps restant de `endsAt` (horodatage de fin) — ne jamais

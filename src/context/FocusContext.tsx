@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react';
 import type { DayLog, SessionRecord, Task, TimerSettings } from '../types';
-import { useLocalStorage } from '../hooks/useLocalStorage';
+import { usePersistentState } from '../data';
 import { useToday } from '../hooks/useToday';
-import { LOG_RETENTION_DAYS, MAX_TASKS, STORAGE_KEYS } from '../utils/constants';
-import { fromDateKey } from '../utils/format';
+import { MAX_TASKS } from '../utils/constants';
 import { createId } from '../utils/id';
-import { normalizeTaskTitle, sanitizeLogs, sanitizeSettings, sanitizeTasks } from '../utils/validation';
+import { appendSession, removeDay } from '../utils/logs';
+import { normalizeTaskTitle, sanitizeSettings, sanitizeTasks } from '../utils/validation';
 
 export interface FocusContextValue {
   today: string;
@@ -28,17 +28,11 @@ export interface FocusContextValue {
 
 const FocusContext = createContext<FocusContextValue | null>(null);
 
-/** Supprime les journaux plus anciens que la fenêtre de rétention. */
-function pruneLogs(logs: Record<string, DayLog>, today: string): Record<string, DayLog> {
-  const limit = fromDateKey(today).getTime() - LOG_RETENTION_DAYS * 86_400_000;
-  return Object.fromEntries(Object.entries(logs).filter(([date]) => fromDateKey(date).getTime() >= limit));
-}
-
 export function FocusProvider({ children }: { children: ReactNode }) {
   const today = useToday();
-  const [settings, setSettings] = useLocalStorage(STORAGE_KEYS.settings, sanitizeSettings);
-  const [tasks, setTasks] = useLocalStorage(STORAGE_KEYS.tasks, sanitizeTasks);
-  const [logs, setLogs] = useLocalStorage(STORAGE_KEYS.logs, sanitizeLogs);
+  const [settings, setSettings] = usePersistentState('settings');
+  const [tasks, setTasks] = usePersistentState('tasks');
+  const [logs, setLogs] = usePersistentState('logs');
 
   const updateSettings = useCallback(
     (patch: Partial<TimerSettings>) => setSettings((previous) => sanitizeSettings({ ...previous, ...patch })),
@@ -94,17 +88,14 @@ export function FocusProvider({ children }: { children: ReactNode }) {
     (session: Omit<SessionRecord, 'id'>) => {
       if (session.durationSeconds <= 0) return;
       const record: SessionRecord = { ...session, id: createId() };
-      setLogs((previous) => {
-        const current = previous[today] ?? { date: today, sessions: [] };
-        return pruneLogs({ ...previous, [today]: { ...current, sessions: [...current.sessions, record] } }, today);
-      });
+      setLogs((previous) => appendSession(previous, today, record));
     },
     [setLogs, today],
   );
 
   const clearTodayLog = useCallback(
     () =>
-      setLogs((previous) => Object.fromEntries(Object.entries(previous).filter(([date]) => date !== today))),
+      setLogs((previous) => removeDay(previous, today)),
     [setLogs, today],
   );
 

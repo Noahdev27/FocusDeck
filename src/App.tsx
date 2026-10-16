@@ -1,25 +1,39 @@
 import { MotionConfig } from 'framer-motion';
+import { lazy } from 'react';
+import { BrowserRouter, Route, Routes } from 'react-router';
+import { RepositoryProvider } from './data';
 import { FocusProvider } from './context/FocusContext';
 import { TimerProvider } from './context/TimerContext';
 import { AppShell } from './components/Layout/AppShell';
-import { PomodoroTimer } from './components/Pomodoro/PomodoroTimer';
-import { TaskBoard } from './components/Todo/TaskBoard';
-import { DailySummary } from './components/Summary/DailySummary';
+import DashboardPage from './pages/DashboardPage';
+import { loadReportsPage, loadSettingsPage, loadStatsPage } from './routes';
+
+const StatsPage = lazy(loadStatsPage);
+const ReportsPage = lazy(loadReportsPage);
+const SettingsPage = lazy(loadSettingsPage);
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 export default function App() {
   return (
     <MotionConfig reducedMotion="user">
-      <FocusProvider>
-        <TimerProvider>
-          <AppShell>
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-              <PomodoroTimer />
-              <TaskBoard />
-            </div>
-            <DailySummary />
-          </AppShell>
-        </TimerProvider>
-      </FocusProvider>
+      <RepositoryProvider>
+        <FocusProvider>
+          {/* Le minuteur vit au-dessus du routeur : il continue de tourner d'une page à l'autre. */}
+          <TimerProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route element={<AppShell />}>
+                  <Route index element={<DashboardPage />} />
+                  <Route path="stats" element={<StatsPage />} />
+                  <Route path="rapports" element={<ReportsPage />} />
+                  <Route path="reglages" element={<SettingsPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </TimerProvider>
+        </FocusProvider>
+      </RepositoryProvider>
     </MotionConfig>
   );
 }
