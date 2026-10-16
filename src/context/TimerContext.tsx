@@ -20,6 +20,7 @@ import {
   skipPhase,
   startTimer,
   switchMode,
+  sessionIdFor,
   type PhaseTransition,
 } from '../utils/timer';
 import { playChime, unlockAudio } from '../utils/sound';
@@ -81,7 +82,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   // Applique une transition : historise la phase sortante puis change d'état.
   const apply = useCallback(
     (transition: PhaseTransition) => {
-      if (transition.record) recordSession(transition.record);
+      if (transition.record) {
+        const { record } = transition;
+        recordSession({ ...record, id: sessionIdFor(record.mode, record.startedAt) });
+      }
       setSnapshot(transition.next);
       setNow(Date.now());
     },

@@ -51,13 +51,14 @@ Kanban, pas de Gantt).
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
 | Architecture (L1 ✅) | Couche de persistance `src/data/` (interface `FocusRepository`, implémentation locale, suite de contrat réutilisable), routes `/`, `/stats`, `/rapports`, `/reglages` avec pages secondaires chargées à la demande, navigation en onglets (desktop) et barre basse (mobile) |
 | Observabilité (L7 ✅) | Sentry chargé à la demande avec filtrage des données personnelles (actif dès que `VITE_SENTRY_DSN` est défini), Vercel Analytics + Speed Insights sans cookie et désactivables, Lighthouse CI (perf 0,96 / a11y 1 / bonnes pratiques 1), audit scripté des en-têtes (note A), guide `docs/deploiement.md` |
+| Comptes (L2 ✅*) | Schéma Postgres + RLS testés sur un vrai Postgres (PGlite), synchronisation hors ligne d'abord (file persistée, curseur, fusion, dédoublonnage multi-appareils), connexion lien magique / Google, déconnexion avec choix. **En attente d'un projet Supabase** (`docs/supabase.md`) : sans configuration, l'app reste en mode local |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
 | Qualité (L0 ✅) | TS strict, ESLint strict, 49 tests Vitest (couverture 91 %, `utils/` 97 %, seuils bloquants), 6 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (137 kB / 180 kB), CI GitHub Actions |
 
 Limites connues : pas de compte ni de sync multi-appareils ; historique limité au jour
 courant dans l'interface ; notifications non fiables sur mobile (pas de Service
-Worker) ; thème sombre uniquement ; français uniquement ; pas de compte ni de synchronisation (lot L2).
+Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais non branchés (projet Supabase à créer).
 
 ## 4. Exigences fonctionnelles
 
@@ -68,7 +69,7 @@ Worker) ; thème sombre uniquement ; français uniquement ; pas de compte ni de 
 | EF-T01 | Les trois modes, durées réglables (bornes actuelles conservées) | M | ✅ |
 | EF-T02 | Le minuteur survit au rechargement, à la mise en veille et à un onglet en arrière-plan sans dérive > 1 s | M | ✅ |
 | EF-T03 | Une **tâche active** peut être associée au cycle Focus en cours ; la session enregistrée référence cette tâche | M | L4 |
-| EF-T04 | Le minuteur est synchronisé entre appareils connectés (démarrer sur l'ordinateur, voir le décompte sur le téléphone) | S | L2 |
+| EF-T04 | Le minuteur est synchronisé entre appareils connectés (démarrer sur l'ordinateur, voir le décompte sur le téléphone) | S | ✅ L2* |
 | EF-T05 | Sons au choix (3 carillons minimum + silencieux), volume, son d'ambiance optionnel (bruit brun) | C | L5 |
 | EF-T06 | Mode « plein écran concentration » : cadran seul, tout le reste masqué | C | L4 |
 | EF-T07 | Objectif quotidien de cycles (ex. 8) avec jauge | S | L3 |
@@ -102,12 +103,15 @@ Worker) ; thème sombre uniquement ; français uniquement ; pas de compte ni de 
 | ID | Exigence | Prio | Lot |
 | --- | --- | --- | --- |
 | EF-C01 | Utilisation complète **sans compte** (mode local) | M | ✅ |
-| EF-C02 | Connexion par lien magique e-mail et Google OAuth (Supabase Auth) | M | L2 |
-| EF-C03 | À la première connexion, les données locales sont **fusionnées** dans le compte (sans doublon, sans perte) | M | L2 |
-| EF-C04 | Hors ligne : toutes les actions restent possibles, mises en file et synchronisées au retour du réseau | M | L2 |
-| EF-C05 | Conflits : « dernier écrit gagne » par champ, horodaté serveur ; aucune perte silencieuse de tâche | M | L2 |
-| EF-C06 | Déconnexion : choix « garder une copie locale » ou « effacer cet appareil » | S | L2 |
+| EF-C02 | Connexion par lien magique e-mail et Google OAuth (Supabase Auth) | M | ✅ L2* |
+| EF-C03 | À la première connexion, les données locales sont **fusionnées** dans le compte (sans doublon, sans perte) | M | ✅ L2* |
+| EF-C04 | Hors ligne : toutes les actions restent possibles, mises en file et synchronisées au retour du réseau | M | ✅ L2* |
+| EF-C05 | Conflits : « dernier écrit gagne » par enregistrement, horodaté serveur ; aucune perte silencieuse de tâche | M | ✅ L2* |
+| EF-C06 | Déconnexion : choix « garder une copie locale » ou « effacer cet appareil » | S | ✅ L2* |
 | EF-C07 | Suppression de compte et export complet JSON (RGPD) | M | L8 |
+
+\* Implémenté et testé (serveur simulé, RLS sur Postgres réel via PGlite) ; **actif dès que le
+projet Supabase est créé et configuré** (voir `docs/supabase.md`).
 
 ### 4.5 Expérience et plateforme
 
@@ -302,7 +306,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 | --- | --- | --- | --- | --- |
 | **L0** ✅ | Socle qualité : CI, e2e Playwright, couverture, axe-core | QUAL-2..4, A11Y-5 | — | `00-socle-qualite.md` |
 | **L1** ✅ | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
-| **L2** | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
+| **L2** ✅* | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
 | **L3** | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |
 | **L4** | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07, EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |
 | **L5** | PWA, notifications SW, thème clair, i18n, sons, onboarding | EF-X02..X06, EF-T05 | L1 | `05-pwa-theme-i18n.md` |
@@ -348,8 +352,9 @@ Ordre recommandé : L0 → L1 → L7 (mise en ligne tôt, en mode local) → L2 
 
 1. **Nom de domaine** et marque définitive (« FocusDeck » est-il disponible ?).
 2. **Prix du plan Pro** (proposition : 4 €/mois, 36 €/an) et devise(s).
-3. **Projet Supabase** : création par le porteur (recommandé, région UE) ou via les outils
-   de l'agent avec son accord explicite. L'intégration Supabase de la marketplace Vercel peut
+3. **Projet Supabase** — *reporté* (16/10/2026) : l'organisation gratuite « BridgeTech » a déjà
+   2 projets actifs. Le code L2 est livré et testé sans base ; il suffira de créer le projet
+   (région Paris) et de suivre `docs/supabase.md`. L'intégration Supabase de la marketplace Vercel peut
    injecter automatiquement les variables d'environnement.
 4. ~~**Hébergeur**~~ — **tranché : Vercel** (16/10/2026). Configuration dans `vercel.json`
    (fallback SPA, cache des assets, en-têtes de sécurité dont une CSP stricte).

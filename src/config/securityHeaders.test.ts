@@ -18,9 +18,14 @@ describe('En-têtes de sécurité (SEC-3)', () => {
 
   it('autorise uniquement les domaines tiers attendus', () => {
     const csp = globalHeaders['Content-Security-Policy'] ?? '';
-    const external = [...new Set(csp.match(/https:\/\/[^\s;]+/g) ?? [])].sort();
+    const external = [...new Set(csp.match(/(?:https|wss):\/\/[^\s;]+/g) ?? [])].sort();
     // Toute nouvelle entrée doit être justifiée (voir CLAUDE.md, section Hébergement).
-    expect(external).toEqual(['https://*.ingest.de.sentry.io', 'https://*.ingest.sentry.io']);
+    expect(external).toEqual([
+      'https://*.ingest.de.sentry.io',
+      'https://*.ingest.sentry.io',
+      'https://*.supabase.co',
+      'wss://*.supabase.co',
+    ]);
   });
 
   it('détecte les configurations dangereuses', () => {

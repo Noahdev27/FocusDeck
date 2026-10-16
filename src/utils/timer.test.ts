@@ -7,6 +7,7 @@ import {
   getNextMode,
   getRemainingMs,
   MIN_RECORDED_PARTIAL_MS,
+  sessionIdFor,
   pauseTimer,
   skipPhase,
   startTimer,
@@ -110,5 +111,12 @@ describe('skipPhase / switchMode', () => {
   it('passer une pause longue réinitialise la série', () => {
     const { next } = skipPhase(createIdleSnapshot('longBreak', settings, 4), settings, T0);
     expect(next).toMatchObject({ mode: 'focus', cyclesInSet: 0 });
+  });
+});
+
+describe('sessionIdFor', () => {
+  it('est déterministe pour une même phase', () => {
+    expect(sessionIdFor('focus', 1792160000000)).toBe('focus:1792160000000');
+    expect(sessionIdFor('focus', 1)).not.toBe(sessionIdFor('shortBreak', 1));
   });
 });

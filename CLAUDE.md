@@ -53,6 +53,9 @@ src/
 ├── context/TimerContext.tsx    # Moteur du minuteur : ticks, fin de phase, alertes
 ├── data/                       # SEUL accès à la persistance : FocusRepository,
 │                               # LocalRepository, RepositoryProvider, usePersistentState
+│   ├── sync/                   # SyncedRepository (file, fusion, curseur), serveur mémoire de test
+│   └── supabase/               # RemoteStore Supabase (lecture incrémentale, Realtime)
+├── auth/                       # Supabase Auth (lien magique, Google), chargé à la demande
 ├── observability/              # Sentry (erreurs) et Vercel Analytics, chargés à la demande ;
 │                               # privacy.ts filtre toute donnée personnelle avant envoi
 ├── hooks/                      # Raccourcis clavier, jour courant, titre du document
@@ -66,6 +69,14 @@ Règles :
 - **Persistance** : les contextes passent par `usePersistentState(clé)` (`src/data/`), jamais
   par `localStorage` directement. Toute nouvelle implémentation de `FocusRepository`
   (Supabase au lot L2) doit passer `describeRepositoryContract` (`src/data/repositoryContract.ts`).
+- **Synchronisation** (lot L2, `docs/supabase.md`) : lecture toujours depuis le cache local ;
+  le `SyncedRepository` calcule le différentiel et le met en file. Ne jamais écrire en base
+  depuis un composant. Comparer des données avec `deepEqual` (`utils/equal.ts`), jamais
+  `JSON.stringify` (sensible à l'ordre des clés). Les sessions ont un identifiant
+  déterministe `mode:début` (`sessionIdFor`) pour être dédoublonnées entre appareils.
+- **Base de données** : toute évolution du schéma = nouvelle migration dans
+  `supabase/migrations/` + tests dans `supabase/tests/` (PGlite, vrai Postgres). RLS
+  obligatoire sur chaque table, avec un test « B ne voit pas les données de A ».
 - **Pages** : chaque page secondaire est chargée paresseusement (`routes.ts`) ; le minuteur
   vit au-dessus du routeur et continue de tourner d'une page à l'autre.
 - **Toute donnée lue d'une source externe** (localStorage, réseau, Supabase) passe par
@@ -127,5 +138,9 @@ bloqué en production alors qu'il marche avec `vite dev`.
   `storageState`) pour le reste.
 - `react-hooks` v7 interdit `Date.now()` et l'écriture de refs pendant le rendu :
   synchroniser les refs dans un `useEffect`.
+- Réentrance : une fonction asynchrone qui marque « en cours » APRÈS avoir lancé son travail
+  peut être rappelée de façon synchrone avant le marquage (récursion infinie constatée dans
+  `syncNow`). Marquer d'abord, puis céder un tour (`await Promise.resolve()`) avant de travailler.
+- Les tests sous `supabase/tests/` tournent dans l'environnement Node (`// @vitest-environment node`).
 - Une fonction `setState(updater)` peut s'exécuter plus tard : ne pas lire de valeur
   calculée dans l'updater juste après l'appel.

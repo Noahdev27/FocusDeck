@@ -6,6 +6,7 @@ import { MODE_META } from '../../utils/constants';
 import { formatClock, formatLongDate } from '../../utils/format';
 import { IconButton } from '../ui/Button';
 import { DesktopNav } from './MainNav';
+import { AccountButton } from '../Account/AccountButton';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -46,6 +47,7 @@ export function Header({ onOpenSettings, onOpenShortcuts }: HeaderProps) {
             </motion.div>
           )}
         </AnimatePresence>
+        <AccountButton />
         <IconButton label="Raccourcis clavier" onClick={onOpenShortcuts} className="hidden sm:grid">
           <Keyboard className="size-[18px]" />
         </IconButton>

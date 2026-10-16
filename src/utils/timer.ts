@@ -61,6 +61,14 @@ export interface PhaseTransition {
   record: { mode: TimerMode; startedAt: number; endedAt: number; durationSeconds: number; completed: boolean } | null;
 }
 
+/**
+ * Identifiant déterministe d'une session : une même phase (mode + début) terminée sur
+ * deux appareils synchronisés produit le même identifiant, donc une seule ligne (EF-T04).
+ */
+export function sessionIdFor(mode: TimerMode, startedAt: number): string {
+  return `${mode}:${startedAt}`;
+}
+
 /** En dessous de ce seuil, une phase interrompue n'est pas historisée (clic accidentel). */
 export const MIN_RECORDED_PARTIAL_MS = 10_000;
 

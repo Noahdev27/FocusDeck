@@ -1,6 +1,7 @@
 import { MotionConfig } from 'framer-motion';
 import { lazy } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router';
+import { AuthProvider } from './auth/AuthContext';
 import { RepositoryProvider } from './data';
 import { FocusProvider } from './context/FocusContext';
 import { TimerProvider } from './context/TimerContext';
@@ -16,6 +17,7 @@ const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 export default function App() {
   return (
     <MotionConfig reducedMotion="user">
+      <AuthProvider>
       <RepositoryProvider>
         <FocusProvider>
           {/* Le minuteur vit au-dessus du routeur : il continue de tourner d'une page à l'autre. */}
@@ -34,6 +36,7 @@ export default function App() {
           </TimerProvider>
         </FocusProvider>
       </RepositoryProvider>
+      </AuthProvider>
     </MotionConfig>
   );
 }

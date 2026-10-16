@@ -12,8 +12,12 @@ export function pruneLogs(
   return Object.fromEntries(Object.entries(logs).filter(([date]) => fromDateKey(date).getTime() >= limit));
 }
 
-/** Ajoute une session au journal du jour puis applique la rétention. */
+/**
+ * Ajoute une session au journal du jour puis applique la rétention. Une session déjà
+ * présente (même identifiant, ex. phase terminée sur deux appareils) n'est pas dupliquée.
+ */
 export function appendSession(logs: Record<string, DayLog>, date: string, session: SessionRecord): Record<string, DayLog> {
+  if (Object.values(logs).some((log) => log.sessions.some((existing) => existing.id === session.id))) return logs;
   const current = logs[date] ?? { date, sessions: [] };
   return pruneLogs({ ...logs, [date]: { ...current, sessions: [...current.sessions, session] } }, date);
 }

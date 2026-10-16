@@ -22,7 +22,8 @@ export interface FocusContextValue {
   clearCompletedTasks: () => void;
 
   todayLog: DayLog;
-  recordSession: (session: Omit<SessionRecord, 'id'>) => void;
+  /** `id` facultatif : fourni par le minuteur pour dédoublonner entre appareils. */
+  recordSession: (session: Omit<SessionRecord, 'id'> & { id?: string }) => void;
   clearTodayLog: () => void;
 }
 
@@ -85,9 +86,9 @@ export function FocusProvider({ children }: { children: ReactNode }) {
   );
 
   const recordSession = useCallback(
-    (session: Omit<SessionRecord, 'id'>) => {
+    (session: Omit<SessionRecord, 'id'> & { id?: string }) => {
       if (session.durationSeconds <= 0) return;
-      const record: SessionRecord = { ...session, id: createId() };
+      const record: SessionRecord = { ...session, id: session.id ?? createId() };
       setLogs((previous) => appendSession(previous, today, record));
     },
     [setLogs, today],

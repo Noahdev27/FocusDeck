@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@sentry/react": "^11.8.0",
+    "@supabase/supabase-js": "^2.118.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "framer-motion": "^14.3.0",
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
+    "@electric-sql/pglite": "^0.5.10",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.56.1",
     "@sentry/vite-plugin": "^11.8.0",
