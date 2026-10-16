@@ -32,7 +32,8 @@ Modèles réutilisables : `modele-bug.md`, `modele-revue.md`, `modele-fonctionna
 5. **Vérifier avant de livrer** : `npm run typecheck && npm run lint && npm test && npm run build`,
    tests e2e, puis vérification visuelle desktop 1360 px et mobile 390 px sans erreur
    console. Rapporter honnêtement ce qui n'a pas pu être vérifié.
-6. **Livrer** : commits clairs en français, push sur la branche de travail désignée.
+6. **Livrer** : commits clairs en français, auteur `noahdev <ngandeu.noe27@gmail.com>`, sans
+   ligne `Co-Authored-By`/`Claude-Session` ni mention de Claude ; push sur la branche de travail désignée.
    Ouvrir une PR seulement si l'utilisateur le demande ; sa description liste les IDs
    d'exigences, les captures et la checklist de la Definition of Done (§9).
 7. **Mettre à jour la documentation** : §3 et tableaux d'exigences du cahier des charges

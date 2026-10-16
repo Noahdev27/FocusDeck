@@ -56,6 +56,14 @@ Règles :
 - Pas de nouvelle dépendance sans justification (taille du bundle : budget dans le
   cahier des charges, ENF-PERF).
 
+## Commits
+
+- Auteur des commits : **noahdev** `<ngandeu.noe27@gmail.com>`. Dans tout nouveau clone :
+  `git config user.name "noahdev"`, `git config user.email "ngandeu.noe27@gmail.com"`,
+  `git config commit.gpgsign false`.
+- **Aucune** ligne `Co-Authored-By: Claude…` ni `Claude-Session:` dans les messages de commit,
+  et aucune mention de Claude dans les descriptions de PR. Messages en français.
+
 ## Hébergement
 
 Vercel — projet `focusdeck` (`prj_PanNZm4STdn6PrqYc579nOkxf39t`, équipe
