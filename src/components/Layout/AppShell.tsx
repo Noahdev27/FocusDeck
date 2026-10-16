@@ -44,7 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="mx-auto flex min-h-dvh w-full max-w-6xl flex-col px-4 pb-12 sm:px-6 lg:px-8">
         <Header onOpenSettings={openSettings} onOpenShortcuts={openShortcuts} />
         <main className="flex flex-1 flex-col gap-6">{children}</main>
-        <footer className="pt-10 text-center text-xs text-zinc-600">
+        <footer className="pt-10 text-center text-xs text-zinc-400">
           Données stockées localement dans votre navigateur · FocusDeck
         </footer>
       </div>

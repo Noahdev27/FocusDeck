@@ -84,7 +84,7 @@ export function MarkdownPreview({ markdown }: { markdown: string }) {
       blocks.push(<hr key={key} className="my-4 border-white/[0.06]" />);
     } else if (/^_.*_$/.test(line)) {
       blocks.push(
-        <p key={key} className="text-sm italic text-zinc-500">
+        <p key={key} className="text-sm italic text-zinc-400">
           {line.slice(1, -1)}
         </p>,
       );

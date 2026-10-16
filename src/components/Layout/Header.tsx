@@ -21,7 +21,7 @@ export function Header({ onOpenSettings, onOpenShortcuts }: HeaderProps) {
         <Logo />
         <div>
           <p className="text-lg font-semibold tracking-tight text-white">FocusDeck</p>
-          <p className="text-xs capitalize text-zinc-500">{formatLongDate(today)}</p>
+          <p className="text-xs capitalize text-zinc-400">{formatLongDate(today)}</p>
         </div>
       </div>
 

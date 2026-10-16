@@ -51,11 +51,11 @@ Kanban, pas de Gantt).
 | Rapport | Statistiques du jour, frise des sessions, aperçu Markdown, copie, export `.md` et `.pdf` (jsPDF chargé à la demande) |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
-| Qualité | TS strict, ESLint strict, 29 tests Vitest (logique pure + intégration), vérification Playwright manuelle |
+| Qualité (L0 ✅) | TS strict, ESLint strict, 49 tests Vitest (couverture 91 %, `utils/` 97 %, seuils bloquants), 6 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (137 kB / 180 kB), CI GitHub Actions |
 
 Limites connues : pas de compte ni de sync multi-appareils ; historique limité au jour
 courant dans l'interface ; notifications non fiables sur mobile (pas de Service
-Worker) ; thème sombre uniquement ; français uniquement ; aucune CI ; pas déployé.
+Worker) ; thème sombre uniquement ; français uniquement ; pas de compte ni de synchronisation (lot L2).
 
 ## 4. Exigences fonctionnelles
 
@@ -291,7 +291,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 
 | Lot | Contenu | Exigences | Dépend de | Prompt |
 | --- | --- | --- | --- | --- |
-| **L0** | Socle qualité : CI, e2e Playwright, couverture, axe-core | QUAL-2..4, A11Y-5 | — | `00-socle-qualite.md` |
+| **L0** ✅ | Socle qualité : CI, e2e Playwright, couverture, axe-core | QUAL-2..4, A11Y-5 | — | `00-socle-qualite.md` |
 | **L1** | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
 | **L2** | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
 | **L3** | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |

@@ -12,10 +12,16 @@ const COLORS = {
 } as const satisfies Record<string, readonly [number, number, number]>;
 
 /**
- * Génère le rapport au format PDF. jsPDF est chargé à la demande pour ne pas
- * alourdir le bundle initial.
+ * Génère le rapport au format PDF et le télécharge. jsPDF est chargé à la
+ * demande pour ne pas alourdir le bundle initial.
  */
 export async function exportReportPdf(report: DailyReport): Promise<void> {
+  const doc = await buildReportPdf(report);
+  doc.save(reportFilename(report, 'pdf'));
+}
+
+/** Construit le document PDF du rapport sans l'enregistrer (testable). */
+export async function buildReportPdf(report: DailyReport): Promise<import('jspdf').jsPDF> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -143,7 +149,7 @@ export async function exportReportPdf(report: DailyReport): Promise<void> {
   doc.setTextColor(...COLORS.violet);
   doc.text(doc.splitTextToSize(buildHeadline(report), contentWidth) as string[], margin, y);
 
-  doc.save(reportFilename(report, 'pdf'));
+  return doc;
 }
 
 function capitalize(text: string): string {

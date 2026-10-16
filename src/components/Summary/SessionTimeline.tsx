@@ -7,7 +7,7 @@ import { formatDuration, formatTime } from '../../utils/format';
 export function SessionTimeline({ sessions }: { sessions: SessionRecord[] }) {
   if (sessions.length === 0) {
     return (
-      <div className="flex h-10 items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-zinc-600">
+      <div className="flex h-10 items-center justify-center rounded-xl border border-dashed border-white/10 text-xs text-zinc-400">
         La frise de la journée apparaîtra après votre première session.
       </div>
     );
@@ -39,7 +39,7 @@ export function SessionTimeline({ sessions }: { sessions: SessionRecord[] }) {
           );
         })}
       </div>
-      <div className="mt-2 flex justify-between text-[11px] text-zinc-600">
+      <div className="mt-2 flex justify-between text-[11px] text-zinc-400">
         <span>{first && formatTime(first.startedAt)}</span>
         <span>{last && formatTime(last.endedAt)}</span>
       </div>

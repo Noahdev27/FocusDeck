@@ -53,7 +53,7 @@ export function CompletionAlert({ completion }: { completion: PhaseCompletion | 
           <button
             type="button"
             onClick={() => setDismissedAt(completion.at)}
-            className="rounded-lg p-1 text-zinc-500 hover:text-zinc-200"
+            className="rounded-lg p-1 text-zinc-400 hover:text-zinc-200"
             aria-label="Masquer"
           >
             <X className="size-4" />

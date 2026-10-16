@@ -18,7 +18,7 @@ export function Toggle({ checked, onChange, label, description, disabled = false
         <label htmlFor={id} className="text-sm font-medium text-zinc-200">
           {label}
         </label>
-        {description && <p className="text-xs text-zinc-500">{description}</p>}
+        {description && <p className="text-xs text-zinc-400">{description}</p>}
       </div>
       <button
         id={id}

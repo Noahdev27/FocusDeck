@@ -86,7 +86,7 @@ export function SettingsDialog({ open, onClose }: { open: boolean; onClose: () =
           onChange={(soundEnabled) => updateSettings({ soundEnabled })}
         />
         <div className="flex items-center gap-3 py-3">
-          <Volume2 className="size-4 text-zinc-500" />
+          <Volume2 className="size-4 text-zinc-400" />
           <input
             type="range"
             min={0}
@@ -151,9 +151,9 @@ function NumberStepper({ label, unit, value, min, max, onChange }: NumberStepper
         <IconButton label={`Diminuer ${label}`} onClick={() => onChange(Math.max(min, value - 1))} disabled={value <= min} className="size-8">
           <Minus className="size-4" />
         </IconButton>
-        <label className="flex items-baseline gap-1">
-          <span className="sr-only">{label}</span>
+        <div className="flex items-baseline gap-1">
           <input
+            aria-label={`${label} (${unit})`}
             type="number"
             inputMode="numeric"
             min={min}
@@ -166,8 +166,10 @@ function NumberStepper({ label, unit, value, min, max, onChange }: NumberStepper
             }}
             className="w-12 appearance-none bg-transparent text-center font-mono text-xl font-semibold tabular-nums text-white outline-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <span className="text-xs text-zinc-500">{unit}</span>
-        </label>
+          <span aria-hidden className="text-xs text-zinc-400">
+            {unit}
+          </span>
+        </div>
         <IconButton label={`Augmenter ${label}`} onClick={() => onChange(Math.min(max, value + 1))} disabled={value >= max} className="size-8">
           <Plus className="size-4" />
         </IconButton>

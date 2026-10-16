@@ -15,10 +15,22 @@ npm run dev         # Vite, http://localhost:5173
 npm run typecheck   # tsc -b (strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes)
 npm run lint        # ESLint (typescript-eslint strict + react-hooks v7)
 npm test            # Vitest (jsdom)
+npm run coverage    # Vitest + couverture avec seuils (global 70 %, src/utils 90 %)
 npm run build       # typecheck + build de production
+npm run size        # budget JS initial ≤ 180 kB gzip (après build)
+npm run check       # typecheck + lint + coverage + build + size
+npm run e2e         # Playwright (après build) : parcours critiques, axe, CSP de vercel.json
 ```
 
-Une modification n'est terminée que si `typecheck`, `lint`, `test` et `build` passent.
+Une modification n'est terminée que si `npm run check` et `npm run e2e` passent ; la CI
+GitHub Actions (`.github/workflows/ci.yml`) les exécute sur chaque PR et sur `main`.
+Les tests e2e appliquent les en-têtes de `vercel.json` et échouent sur toute erreur console,
+violation CSP ou violation axe sérieuse/critique (WCAG 2.2 AA).
+
+`@playwright/test` et `playwright-core` sont **épinglés en 1.56.1** pour correspondre au
+Chromium préinstallé de l'environnement cloud (`/opt/pw-browsers/chromium-1194`). Ne pas les
+mettre à jour sans mettre à jour ce navigateur ; ne jamais lancer `playwright install` en local
+cloud (la CI, elle, l'installe).
 Pour toute modification visible, lancer l'app (`npm run build && npx vite preview`) et la
 vérifier dans Chromium via Playwright (`/opt/node-tools/node_modules/playwright` dans
 l'environnement cloud), en desktop 1360px et mobile 390px, sans erreur console et sans
@@ -50,6 +62,8 @@ Règles :
   format = incrémenter la version + écrire une migration testée.
 - Animations : Framer Motion, `MotionConfig reducedMotion="user"` est actif.
   Pas d'animation qui bloque une interaction.
+- Contraste : texte secondaire en `text-zinc-400` minimum sur fond sombre (`zinc-500/600`
+  échouent au contraste AA).
 - Accessibilité : rôles ARIA corrects (switch, tab, dialog, checkbox, timer), focus
   visible, navigation clavier complète. Les modales passent par `components/ui/Modal`.
 - Pas de `dangerouslySetInnerHTML`. Le rendu Markdown passe par `MarkdownPreview`.

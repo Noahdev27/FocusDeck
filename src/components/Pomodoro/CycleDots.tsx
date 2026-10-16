@@ -9,7 +9,7 @@ interface CycleDotsProps {
 export function CycleDots({ completed, total }: CycleDotsProps) {
   const filled = completed % total === 0 && completed > 0 ? total : completed % total;
   return (
-    <div className="flex items-center gap-1.5" aria-label={`${filled} cycle(s) sur ${total} avant la pause longue`}>
+    <div role="img" className="flex items-center gap-1.5" aria-label={`${filled} cycle(s) sur ${total} avant la pause longue`}>
       {Array.from({ length: total }, (_, index) => (
         <motion.span
           key={index}

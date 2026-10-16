@@ -55,7 +55,7 @@ export function TaskItem({ task, reorderable, onToggle, onRename, onDelete }: Ta
           type="button"
           aria-label="Déplacer"
           onPointerDown={(event) => controls.start(event)}
-          className="cursor-grab touch-none rounded-md p-0.5 text-zinc-600 opacity-60 transition hover:text-zinc-300 active:cursor-grabbing sm:opacity-0 sm:group-hover:opacity-100"
+          className="cursor-grab touch-none rounded-md p-0.5 text-zinc-400 opacity-60 transition hover:text-zinc-300 active:cursor-grabbing sm:opacity-0 sm:group-hover:opacity-100"
         >
           <GripVertical className="size-4" />
         </button>
@@ -100,7 +100,7 @@ export function TaskItem({ task, reorderable, onToggle, onRename, onDelete }: Ta
           </button>
         )}
         {task.completed && task.completedAt !== null && !editing && (
-          <p className="text-[11px] text-zinc-600">Terminé à {formatTime(task.completedAt)}</p>
+          <p className="text-[11px] text-zinc-400">Terminé à {formatTime(task.completedAt)}</p>
         )}
       </div>
 
@@ -109,7 +109,7 @@ export function TaskItem({ task, reorderable, onToggle, onRename, onDelete }: Ta
           type="button"
           aria-label="Renommer"
           onClick={() => setEditing(true)}
-          className="rounded-lg p-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200"
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
         >
           <Pencil className="size-3.5" />
         </button>
@@ -117,7 +117,7 @@ export function TaskItem({ task, reorderable, onToggle, onRename, onDelete }: Ta
           type="button"
           aria-label="Supprimer"
           onClick={() => onDelete(task.id)}
-          className="rounded-lg p-1.5 text-zinc-500 hover:bg-rose-500/10 hover:text-rose-300"
+          className="rounded-lg p-1.5 text-zinc-400 hover:bg-rose-500/10 hover:text-rose-300"
         >
           <Trash2 className="size-3.5" />
         </button>

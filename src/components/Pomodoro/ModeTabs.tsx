@@ -26,7 +26,7 @@ export function ModeTabs({ mode, onChange }: ModeTabsProps) {
             onClick={() => onChange(item)}
             className={cn(
               'relative flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-              active ? 'text-white' : 'text-zinc-500 hover:text-zinc-300',
+              active ? 'text-white' : 'text-zinc-400 hover:text-zinc-300',
             )}
           >
             {active && (

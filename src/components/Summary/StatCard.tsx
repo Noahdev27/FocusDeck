@@ -31,7 +31,7 @@ export function StatCard({ icon, label, value, hint, accent }: StatCardProps) {
           </motion.p>
         </AnimatePresence>
       </div>
-      {hint && <p className="mt-1 text-xs text-zinc-500">{hint}</p>}
+      {hint && <p className="mt-1 text-xs text-zinc-400">{hint}</p>}
     </div>
   );
 }

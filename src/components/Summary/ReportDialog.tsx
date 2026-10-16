@@ -79,7 +79,7 @@ export function ReportDialog({ open, onClose, report }: ReportDialogProps) {
                 onClick={() => setFormat(item)}
                 className={cn(
                   'relative rounded-lg px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors',
-                  format === item ? 'text-white' : 'text-zinc-500 hover:text-zinc-300',
+                  format === item ? 'text-white' : 'text-zinc-400 hover:text-zinc-300',
                 )}
               >
                 {format === item && <motion.span layoutId="format-pill" className="absolute inset-0 rounded-lg bg-white/10" />}
@@ -123,14 +123,14 @@ export function ReportDialog({ open, onClose, report }: ReportDialogProps) {
               aria-pressed={view === item}
               className={cn(
                 'rounded-lg px-2.5 py-1.5 font-medium transition-colors',
-                view === item ? 'bg-white/[0.07] text-white' : 'text-zinc-500 hover:text-zinc-300',
+                view === item ? 'bg-white/[0.07] text-white' : 'text-zinc-400 hover:text-zinc-300',
               )}
             >
               {item === 'preview' ? 'Aperçu' : 'Source Markdown'}
             </button>
           ))}
         </div>
-        <span className="font-mono text-[11px] text-zinc-600">{reportFilename(report, format === 'pdf' ? 'pdf' : 'md')}</span>
+        <span className="font-mono text-[11px] text-zinc-400">{reportFilename(report, format === 'pdf' ? 'pdf' : 'md')}</span>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>

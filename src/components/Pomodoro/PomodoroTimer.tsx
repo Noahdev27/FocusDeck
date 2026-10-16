@@ -55,7 +55,7 @@ export function PomodoroTimer() {
             {clock}
           </span>
           <CycleDots completed={cyclesInSet} total={settings.longBreakInterval} />
-          <span className="text-xs text-zinc-500">
+          <span className="text-xs text-zinc-400">
             {status === 'paused' ? 'En pause' : status === 'running' ? 'En cours…' : 'Prêt'}
           </span>
         </div>

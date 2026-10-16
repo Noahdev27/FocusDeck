@@ -83,7 +83,7 @@ export function TaskBoard() {
             onClick={() => setFilter(item.id)}
             className={cn(
               'relative rounded-lg px-2.5 py-1.5 font-medium transition-colors',
-              filter === item.id ? 'text-white' : 'text-zinc-500 hover:text-zinc-300',
+              filter === item.id ? 'text-white' : 'text-zinc-400 hover:text-zinc-300',
             )}
           >
             {filter === item.id && (
@@ -121,7 +121,7 @@ export function TaskBoard() {
               <span className="grid size-12 place-items-center rounded-2xl bg-white/[0.04] ring-1 ring-white/[0.06]">
                 <Sparkles className="size-5 text-violet-300" />
               </span>
-              <p className="max-w-xs text-sm text-zinc-500">{EMPTY_MESSAGES[filter]}</p>
+              <p className="max-w-xs text-sm text-zinc-400">{EMPTY_MESSAGES[filter]}</p>
             </motion.div>
           )}
         </AnimatePresence>
