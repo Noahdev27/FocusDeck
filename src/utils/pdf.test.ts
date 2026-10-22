@@ -8,6 +8,9 @@ const task = (id: string, title: string, completed: boolean): Task => ({
   completed,
   createdAt: 0,
   completedAt: completed ? new Date(2026, 9, 16, 10, 30).getTime() : null,
+  projectId: null,
+  estimate: null,
+  plannedFor: null,
 });
 
 const baseReport: DailyReport = {
@@ -20,6 +23,8 @@ const baseReport: DailyReport = {
   completedTasks: [task('a', 'Écrire le brief client', true)],
   pendingTasks: [task('b', 'Relire la maquette', false)],
   completionRate: 0.5,
+  postponedTasks: [],
+  projectGroups: [],
 };
 
 /** Texte brut du PDF (flux non compressés par défaut dans jsPDF). */
@@ -40,6 +45,26 @@ describe('buildReportPdf', () => {
     const doc = await buildReportPdf({ ...baseReport, completedTasks: [], pendingTasks: [], completionRate: 0 });
     const text = pdfText(doc);
     expect(text).toContain('Rien en attente');
+  });
+
+  it('groupe par projet : temps par projet, sous-titres, reportées', async () => {
+    const completed = task('a', 'Écrire le brief client', true);
+    const pending = task('b', 'Relire la maquette', false);
+    const doc = await buildReportPdf({
+      ...baseReport,
+      postponedTasks: [{ ...task('c', 'Facturer Acme', false), plannedFor: '2026-10-17' }],
+      projectGroups: [
+        { projectId: 'p1', name: 'Site Acme', color: '#34d399', client: 'Acme', focusSeconds: 3000, completedTasks: [completed], pendingTasks: [] },
+        { projectId: null, name: 'Sans projet', color: null, client: null, focusSeconds: 1500, completedTasks: [], pendingTasks: [pending] },
+      ],
+    });
+    const text = pdfText(doc);
+    expect(text).toContain('Temps par projet');
+    expect(text).toContain('Site Acme \\(Acme\\)');
+    expect(text).toContain('50 min');
+    expect(text).toContain('SANS PROJET');
+    expect(text).toContain('Reportées \\(1\\)');
+    expect(text).toContain('Facturer Acme');
   });
 
   it('ajoute des pages quand la liste est longue', async () => {

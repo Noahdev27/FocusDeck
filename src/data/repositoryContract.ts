@@ -11,10 +11,10 @@ export interface ContractHarness {
   writeRaw: (key: CollectionKey, raw: string) => void;
 }
 
-const task = (id: string, title: string): Task => ({ id, title, completed: false, createdAt: 1, completedAt: null });
+const task = (id: string, title: string): Task => ({ id, title, completed: false, createdAt: 1, completedAt: null, projectId: null, estimate: null, plannedFor: null });
 const day = (date: string): DayLog => ({
   date,
-  sessions: [{ id: `s-${date}`, mode: 'focus', startedAt: 1, endedAt: 2, durationSeconds: 1500, completed: true }],
+  sessions: [{ id: `s-${date}`, mode: 'focus', startedAt: 1, endedAt: 2, durationSeconds: 1500, completed: true, taskId: null }],
 });
 
 /**
@@ -27,6 +27,7 @@ export function describeRepositoryContract(name: string, setup: () => ContractHa
       const { repository } = setup();
       expect(repository.read('settings')).toEqual(DEFAULT_SETTINGS);
       expect(repository.read('tasks')).toEqual([]);
+      expect(repository.read('projects')).toEqual([]);
       expect(repository.read('logs')).toEqual({});
       expect(repository.read('timer')).toBeNull();
     });
@@ -35,7 +36,8 @@ export function describeRepositoryContract(name: string, setup: () => ContractHa
       const { repository } = setup();
       const data: AppData = {
         settings: { ...DEFAULT_SETTINGS, focusMinutes: 50, autoStartBreaks: true },
-        tasks: [task('a', 'Écrire'), task('b', 'Relire')],
+        tasks: [{ ...task('a', 'Écrire'), projectId: 'p1', estimate: 3, plannedFor: '2026-10-17' }, task('b', 'Relire')],
+        projects: [{ id: 'p1', name: 'Site Acme', color: '#34d399', client: 'Acme', createdAt: 5, archivedAt: null }],
         logs: { '2026-10-16': day('2026-10-16') },
         timer: {
           mode: 'shortBreak',
@@ -45,6 +47,7 @@ export function describeRepositoryContract(name: string, setup: () => ContractHa
           durationMs: 300_000,
           startedAt: 10,
           cyclesInSet: 2,
+          taskId: null,
         },
       };
       for (const key of Object.keys(data) as CollectionKey[]) {
@@ -61,7 +64,7 @@ export function describeRepositoryContract(name: string, setup: () => ContractHa
       writeRaw('tasks', '[{"id":"x","title":"  ok  ","createdAt":1}, {"title":"sans id"}]');
       writeRaw('logs', 'pas du json');
       expect(repository.read('settings')).toMatchObject({ focusMinutes: 180, soundEnabled: true });
-      expect(repository.read('tasks')).toEqual([{ id: 'x', title: 'ok', completed: false, createdAt: 1, completedAt: null }]);
+      expect(repository.read('tasks')).toEqual([{ id: 'x', title: 'ok', completed: false, createdAt: 1, completedAt: null, projectId: null, estimate: null, plannedFor: null }]);
       expect(repository.read('logs')).toEqual({});
     });
 

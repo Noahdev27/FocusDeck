@@ -42,10 +42,13 @@ function fakeClient(tables: Record<string, unknown>, failOn?: string) {
 
 const taskRow = (patch: Partial<TaskRow> = {}): TaskRow => ({
   id: '10000000-0000-4000-8000-000000000001',
+  project_id: null,
   title: 'Devis Acme',
   completed: false,
   completed_at: null,
   position: 0,
+  estimate: null,
+  planned_for: null,
   created_at: '2026-10-16T08:00:00.000Z',
   updated_at: '2026-10-16T09:00:00.000Z',
   deleted_at: null,
@@ -54,6 +57,7 @@ const taskRow = (patch: Partial<TaskRow> = {}): TaskRow => ({
 
 const sessionRow: SessionRow = {
   id: 'focus:1792144800000',
+  task_id: null,
   mode: 'focus',
   started_at: '2026-10-16T08:00:00.000Z',
   ended_at: '2026-10-16T08:25:00.000Z',
@@ -78,7 +82,7 @@ describe('createSupabaseRemote', () => {
     // Les lignes invalides (titre vide, mode inconnu) sont écartées par les sanitizers.
     expect(pull.tasks).toEqual([
       {
-        task: { id: taskRow().id, title: 'Devis Acme', completed: false, createdAt: Date.parse('2026-10-16T08:00:00.000Z'), completedAt: null },
+        task: { id: taskRow().id, title: 'Devis Acme', completed: false, createdAt: Date.parse('2026-10-16T08:00:00.000Z'), completedAt: null, projectId: null, estimate: null, plannedFor: null },
         position: 0,
         deleted: false,
       },
@@ -107,9 +111,9 @@ describe('createSupabaseRemote', () => {
     const { client, writes } = fakeClient({});
     await createSupabaseRemote(client, 'u1').push([
       { type: 'settings', settings: DEFAULT_SETTINGS },
-      { type: 'task', task: { id: 't1', title: 'A', completed: true, createdAt: 0, completedAt: 1000 }, position: 2 },
+      { type: 'task', task: { id: 't1', title: 'A', completed: true, createdAt: 0, completedAt: 1000, projectId: null, estimate: null, plannedFor: null }, position: 2 },
       { type: 'task-delete', id: 't2' },
-      { type: 'session', date: '2026-10-16', session: { id: 's1', mode: 'focus', startedAt: 0, endedAt: 1000, durationSeconds: 1, completed: true } },
+      { type: 'session', date: '2026-10-16', session: { id: 's1', mode: 'focus', startedAt: 0, endedAt: 1000, durationSeconds: 1, completed: true, taskId: null } },
       { type: 'session-delete', id: 's2' },
       { type: 'timer', snapshot: null },
     ]);
@@ -125,16 +129,56 @@ describe('createSupabaseRemote', () => {
       {
         id: 't1',
         user_id: 'u1',
+        project_id: null,
         title: 'A',
         completed: true,
         completed_at: '1970-01-01T00:00:01.000Z',
         position: 2,
+        estimate: null,
+        planned_for: null,
         created_at: '1970-01-01T00:00:00.000Z',
         deleted_at: null,
       },
     ]);
     expect(writes[4]?.[3]).toEqual({ onConflict: 'id', ignoreDuplicates: true });
     expect(writes[3]?.[3]).toEqual(['t2']);
+  });
+
+  it('lot L4 : projets, champs des tâches et tâche des sessions, envoyés avant les tâches', async () => {
+    const PROJECT = '20000000-0000-4000-8000-000000000001';
+    const TASK = '10000000-0000-4000-8000-000000000001';
+    const { client, writes } = fakeClient({
+      projects: [
+        { id: PROJECT, name: 'Site Acme', color: '#34d399', client: 'Acme', created_at: '2026-10-16T07:00:00.000Z', archived_at: null, updated_at: '2026-10-16T11:00:00.000Z' },
+        { id: 'x', name: '', color: '#34d399', client: null, created_at: '2026-10-16T07:00:00.000Z', archived_at: null, updated_at: '2026-10-16T07:00:00.000Z' },
+      ],
+      tasks: [taskRow({ project_id: PROJECT, estimate: 3, planned_for: '2026-10-17' })],
+      sessions: [{ ...sessionRow, task_id: TASK }],
+    });
+    const remote = createSupabaseRemote(client, 'u1');
+    const pull = await remote.pull(null);
+    expect(pull.projects).toEqual([
+      { id: PROJECT, name: 'Site Acme', color: '#34d399', client: 'Acme', createdAt: Date.parse('2026-10-16T07:00:00.000Z'), archivedAt: null },
+    ]);
+    expect(pull.tasks[0]?.task).toMatchObject({ projectId: PROJECT, estimate: 3, plannedFor: '2026-10-17' });
+    expect(pull.sessions[0]?.session.taskId).toBe(TASK);
+    expect(pull.cursor).toBe('2026-10-16T11:00:00.000Z');
+
+    const project = pull.projects[0];
+    const task = pull.tasks[0]?.task;
+    if (!project || !task) throw new Error('données attendues');
+    await remote.push([
+      { type: 'task', task: { ...task, projectId: 'local-1' }, position: 0 },
+      { type: 'project', project: { ...project, archivedAt: 0 } },
+      { type: 'session', date: '2026-10-16', session: { id: 's', mode: 'focus', startedAt: 0, endedAt: 1, durationSeconds: 1, completed: true, taskId: TASK } },
+    ]);
+    expect(writes.map(([table, op]) => `${String(table)}:${String(op)}`)).toEqual(['projects:upsert', 'tasks:upsert', 'sessions:upsert']);
+    expect(writes[0]?.[2]).toEqual([
+      { id: PROJECT, user_id: 'u1', name: 'Site Acme', color: '#34d399', client: 'Acme', created_at: '2026-10-16T07:00:00.000Z', archived_at: '1970-01-01T00:00:00.000Z' },
+    ]);
+    // Identifiant local non UUID : la référence est omise plutôt que de bloquer l'envoi.
+    expect(writes[1]?.[2]).toEqual([expect.objectContaining({ project_id: null, estimate: 3, planned_for: '2026-10-17' })]);
+    expect(writes[2]?.[2]).toEqual([expect.objectContaining({ task_id: TASK })]);
   });
 
   it('signale les erreurs du serveur', async () => {
@@ -148,7 +192,7 @@ describe('createSupabaseRemote', () => {
     const { client, channel } = fakeClient({});
     const onChange = vi.fn();
     const unsubscribe = createSupabaseRemote(client, 'u1').subscribe(onChange);
-    expect(channel.on).toHaveBeenCalledTimes(4);
+    expect(channel.on).toHaveBeenCalledTimes(5);
     expect(channel.on).toHaveBeenCalledWith('postgres_changes', expect.objectContaining({ table: 'tasks', filter: 'user_id=eq.u1' }), onChange);
     unsubscribe();
     expect(client.removeChannel).toHaveBeenCalledWith(channel);

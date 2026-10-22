@@ -1,12 +1,15 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Timer } from 'lucide-react';
+import { Maximize2, Timer } from 'lucide-react';
 import { useFocus } from '../../context/FocusContext';
 import { useTimer } from '../../context/TimerContext';
 import { MODE_META } from '../../utils/constants';
 import { formatClock } from '../../utils/format';
+import { IconButton } from '../ui/Button';
 import { Card, CardHeader } from '../ui/Card';
+import { ActiveTask } from './ActiveTask';
 import { CompletionAlert } from './CompletionAlert';
 import { CycleDots } from './CycleDots';
+import { useFocusMode } from './FocusMode';
 import { ModeTabs } from './ModeTabs';
 import { TimerControls } from './TimerControls';
 import { TimerRing } from './TimerRing';
@@ -14,6 +17,7 @@ import { TimerRing } from './TimerRing';
 export function PomodoroTimer() {
   const { settings } = useFocus();
   const { mode, status, remainingMs, progress, cyclesInSet, lastCompletion, toggle, reset, skip, setMode } = useTimer();
+  const { enter: enterFocusMode } = useFocusMode();
   const clock = formatClock(remainingMs);
   const nextLongBreakIn = settings.longBreakInterval - (cyclesInSet % settings.longBreakInterval);
 
@@ -27,6 +31,11 @@ export function PomodoroTimer() {
           mode === 'focus'
             ? `Pause longue dans ${nextLongBreakIn} cycle${nextLongBreakIn > 1 ? 's' : ''}`
             : 'Respirez, étirez-vous, hydratez-vous.'
+        }
+        actions={
+          <IconButton label="Mode concentration (F)" onClick={enterFocusMode}>
+            <Maximize2 className="size-4" />
+          </IconButton>
         }
       />
 
@@ -60,6 +69,8 @@ export function PomodoroTimer() {
           </span>
         </div>
       </TimerRing>
+
+      <ActiveTask />
 
       <TimerControls mode={mode} status={status} onToggle={toggle} onReset={reset} onSkip={skip} />
 

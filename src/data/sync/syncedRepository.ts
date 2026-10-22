@@ -1,7 +1,8 @@
+import { STORAGE_PREFIX } from '../../utils/constants';
 import { toDateKey } from '../../utils/format';
 import type { AppData, FocusRepository, RepositoryChange } from '../repository';
 import { mergeRemote, localOnlyEntries } from './merge';
-import { acknowledge, diffLogs, diffSettings, diffTasks, diffTimer, enqueue, sanitizeOutbox } from './outbox';
+import { acknowledge, diffLogs, diffProjects, diffSettings, diffTasks, diffTimer, enqueue, sanitizeOutbox } from './outbox';
 import type { RemoteStore, SyncStatus } from './types';
 
 const SYNC_INTERVAL_MS = 30_000;
@@ -15,6 +16,11 @@ export interface SyncedRepository extends FocusRepository {
   /** Démarre la synchronisation automatique (réseau retrouvé, intervalle, Realtime). */
   start(): void;
   dispose(): void;
+}
+
+/** Clé de la file ou du curseur de synchronisation d'un utilisateur. */
+export function syncStorageKey(userId: string, name: 'outbox' | 'cursor'): string {
+  return `${STORAGE_PREFIX}:sync:${userId}:${name}`;
 }
 
 export interface SyncedRepositoryOptions {
@@ -48,8 +54,8 @@ export function createSyncedRepository(options: SyncedRepositoryOptions): Synced
       return () => window.clearTimeout(id);
     });
 
-  const outboxKey = `focusdeck:v1:sync:${userId}:outbox`;
-  const cursorKey = `focusdeck:v1:sync:${userId}:cursor`;
+  const outboxKey = syncStorageKey(userId, 'outbox');
+  const cursorKey = syncStorageKey(userId, 'cursor');
 
   const readJson = (key: string): unknown => {
     try {
@@ -81,6 +87,7 @@ export function createSyncedRepository(options: SyncedRepositoryOptions): Synced
   const readAll = (): AppData => ({
     settings: local.read('settings'),
     tasks: local.read('tasks'),
+    projects: local.read('projects'),
     logs: local.read('logs'),
     timer: local.read('timer'),
   });
@@ -129,6 +136,21 @@ export function createSyncedRepository(options: SyncedRepositoryOptions): Synced
     }
   };
 
+  const diff = <K extends keyof AppData>(key: K, previous: AppData[K], next: AppData[K]) => {
+    switch (key) {
+      case 'settings':
+        return diffSettings(previous as AppData['settings'], next as AppData['settings']);
+      case 'tasks':
+        return diffTasks(previous as AppData['tasks'], next as AppData['tasks']);
+      case 'projects':
+        return diffProjects(previous as AppData['projects'], next as AppData['projects']);
+      case 'logs':
+        return diffLogs(previous as AppData['logs'], next as AppData['logs'], toDateKey(now()));
+      default:
+        return diffTimer(previous as AppData['timer'], next as AppData['timer']);
+    }
+  };
+
   // Une seule synchronisation à la fois ; une demande pendant l'exécution en relance une.
   // - Le travail démarre après un tour de microtâche : `running` est donc assigné avant
   //   tout appel susceptible de rappeler `syncNow` de façon synchrone (réentrance).
@@ -160,14 +182,7 @@ export function createSyncedRepository(options: SyncedRepositoryOptions): Synced
     async write(key, value) {
       const previous = local.read(key);
       await local.write(key, value);
-      const entries =
-        key === 'settings'
-          ? diffSettings(previous as AppData['settings'], value as AppData['settings'])
-          : key === 'tasks'
-            ? diffTasks(previous as AppData['tasks'], value as AppData['tasks'])
-            : key === 'logs'
-              ? diffLogs(previous as AppData['logs'], value as AppData['logs'], toDateKey(now()))
-              : diffTimer(previous as AppData['timer'], value as AppData['timer']);
+      const entries = diff(key, previous, value);
       if (entries.length === 0) return;
       outbox = enqueue(outbox, entries);
       saveOutbox();

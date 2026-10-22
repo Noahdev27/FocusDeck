@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { SessionRecord } from '../types';
 import { appendSession, pruneLogs, removeDay } from './logs';
 
-const session = (id: string): SessionRecord => ({ id, mode: 'focus', startedAt: 1, endedAt: 2, durationSeconds: 60, completed: true });
+const session = (id: string): SessionRecord => ({ id, mode: 'focus', startedAt: 1, endedAt: 2, durationSeconds: 60, completed: true, taskId: null });
 
 describe('logs', () => {
   it('ajoute une session au jour courant', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { DayLog, Task } from '../types';
-import { buildDailyReport, escapeMarkdown, reportFilename, reportToMarkdown } from './report';
+import type { DayLog, Project, Task } from '../types';
+import { buildDailyReport, escapeMarkdown, groupLabel, reportFilename, reportToMarkdown } from './report';
 
 const day = new Date(2026, 9, 16, 9, 0).getTime();
 const at = (hours: number, minutes = 0) => day + (hours - 9) * 3_600_000 + minutes * 60_000;
@@ -8,17 +8,17 @@ const at = (hours: number, minutes = 0) => day + (hours - 9) * 3_600_000 + minut
 const log: DayLog = {
   date: '2026-10-16',
   sessions: [
-    { id: 'a', mode: 'focus', startedAt: at(9), endedAt: at(9, 25), durationSeconds: 1500, completed: true },
-    { id: 'b', mode: 'shortBreak', startedAt: at(9, 25), endedAt: at(9, 30), durationSeconds: 300, completed: true },
-    { id: 'c', mode: 'focus', startedAt: at(9, 30), endedAt: at(9, 40), durationSeconds: 600, completed: false },
+    { id: 'a', mode: 'focus', startedAt: at(9), endedAt: at(9, 25), durationSeconds: 1500, completed: true, taskId: null },
+    { id: 'b', mode: 'shortBreak', startedAt: at(9, 25), endedAt: at(9, 30), durationSeconds: 300, completed: true, taskId: null },
+    { id: 'c', mode: 'focus', startedAt: at(9, 30), endedAt: at(9, 40), durationSeconds: 600, completed: false, taskId: null },
   ],
 };
 
 const tasks: Task[] = [
-  { id: '1', title: 'Écrire le brief *client*', completed: true, createdAt: at(9), completedAt: at(9, 20) },
-  { id: '2', title: 'Relire la maquette', completed: false, createdAt: at(9), completedAt: null },
+  { id: '1', title: 'Écrire le brief *client*', completed: true, createdAt: at(9), completedAt: at(9, 20), projectId: null, estimate: null, plannedFor: null },
+  { id: '2', title: 'Relire la maquette', completed: false, createdAt: at(9), completedAt: null, projectId: null, estimate: null, plannedFor: null },
   // Terminée la veille : ne doit pas apparaître dans le rapport du jour.
-  { id: '3', title: 'Ancienne tâche', completed: true, createdAt: at(9) - 86_400_000, completedAt: at(9) - 86_400_000 },
+  { id: '3', title: 'Ancienne tâche', completed: true, createdAt: at(9) - 86_400_000, completedAt: at(9) - 86_400_000, projectId: null, estimate: null, plannedFor: null },
 ];
 
 describe('buildDailyReport', () => {
@@ -61,5 +61,63 @@ describe('reportToMarkdown', () => {
 
   it('nomme les fichiers par date', () => {
     expect(reportFilename(buildDailyReport(log, []), 'pdf')).toBe('focusdeck-rapport-2026-10-16.pdf');
+  });
+});
+
+describe('rapport groupé par projet (lot L4)', () => {
+  const projects: Project[] = [
+    { id: 'p1', name: 'Site Acme', color: '#34d399', client: 'Acme', createdAt: 1, archivedAt: null },
+    { id: 'p2', name: 'Blog', color: '#fb7185', client: null, createdAt: 2, archivedAt: null },
+    { id: 'p3', name: 'Inactif', color: '#60a5fa', client: null, createdAt: 3, archivedAt: null },
+  ];
+  const base = { completed: false, createdAt: at(9), completedAt: null, estimate: null, plannedFor: null };
+  const projectTasks: Task[] = [
+    { ...base, id: 't1', title: 'Maquette', projectId: 'p1', completed: true, completedAt: at(10) },
+    { ...base, id: 't2', title: 'Intégration', projectId: 'p1' },
+    { ...base, id: 't3', title: 'Article', projectId: 'p2' },
+    { ...base, id: 't4', title: 'Courses', projectId: null },
+    { ...base, id: 't5', title: 'Projet supprimé', projectId: 'disparu' },
+    { ...base, id: 't6', title: 'Plus tard', projectId: 'p1', plannedFor: '2026-10-17' },
+  ];
+  const projectLog: DayLog = {
+    date: '2026-10-16',
+    sessions: [
+      { id: 'a', mode: 'focus', startedAt: at(9), endedAt: at(9, 25), durationSeconds: 1500, completed: true, taskId: 't1' },
+      { id: 'b', mode: 'focus', startedAt: at(10), endedAt: at(10, 25), durationSeconds: 1500, completed: true, taskId: 't2' },
+      { id: 'c', mode: 'shortBreak', startedAt: at(10, 25), endedAt: at(10, 30), durationSeconds: 300, completed: true, taskId: null },
+      { id: 'd', mode: 'focus', startedAt: at(11), endedAt: at(11, 10), durationSeconds: 600, completed: false, taskId: null },
+      { id: 'e', mode: 'focus', startedAt: at(12), endedAt: at(12, 25), durationSeconds: 1500, completed: true, taskId: 'tâche-supprimée' },
+    ],
+  };
+  const report = buildDailyReport(projectLog, projectTasks, at(18), projects);
+
+  it('répartit le temps de focus et les tâches par projet, « Sans projet » en dernier', () => {
+    expect(report.projectGroups.map((g) => [g.name, g.focusSeconds, g.completedTasks.length, g.pendingTasks.length])).toEqual([
+      ['Site Acme', 3000, 1, 1],
+      ['Blog', 0, 0, 1],
+      ['Sans projet', 2100, 0, 2],
+    ]);
+  });
+
+  it('sort les tâches reportées du taux de complétion', () => {
+    expect(report.postponedTasks.map((t) => t.id)).toEqual(['t6']);
+    expect(report.pendingTasks.map((t) => t.id)).not.toContain('t6');
+    expect(report.completionRate).toBe(1 / 5);
+  });
+
+  it('reste plat sans projet concerné', () => {
+    expect(buildDailyReport(log, tasks, at(18), projects).projectGroups).toEqual([]);
+    expect(buildDailyReport(projectLog, projectTasks, at(18)).projectGroups).toEqual([]);
+  });
+
+  it('Markdown : temps par projet, sous-titres par projet, reportées', () => {
+    const markdown = reportToMarkdown(report);
+    expect(markdown).toContain('## Temps par projet');
+    expect(markdown).toContain('| Site Acme (Acme) | 50 min | 1 |');
+    expect(markdown).toContain('| Sans projet | 35 min | 0 |');
+    expect(markdown).toContain('### Site Acme\n\n- [x] Maquette');
+    expect(markdown).toMatch(/## À reprendre \(4\)\n\n### Site Acme\n\n- \[ \] Intégration\n\n### Blog\n\n- \[ \] Article/);
+    expect(markdown).toMatch(/## Reportées \(1\)\n\n- \[ \] Plus tard — prévue sam\. 17 oct\./);
+    expect(groupLabel({ name: 'A', client: null })).toBe('A');
   });
 });

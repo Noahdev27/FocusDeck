@@ -63,6 +63,15 @@ export function SettingsForm() {
         />
       </section>
 
+      <section aria-label="Objectifs" className="mt-6">
+        <Toggle
+          label="Reporter automatiquement les objectifs en retard"
+          description="Un objectif reporté mais non terminé revient dans la liste du jour. Désactivé, il est signalé « en retard »."
+          checked={settings.autoPostpone}
+          onChange={(autoPostpone) => updateSettings({ autoPostpone })}
+        />
+      </section>
+
       <section aria-label="Alertes" className="mt-6 divide-y divide-white/[0.06]">
         <Toggle
           label="Alerte sonore"

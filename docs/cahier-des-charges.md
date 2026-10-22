@@ -53,8 +53,9 @@ Kanban, pas de Gantt).
 | Observabilité (L7 ✅) | Sentry chargé à la demande avec filtrage des données personnelles (actif dès que `VITE_SENTRY_DSN` est défini), Vercel Analytics + Speed Insights sans cookie et désactivables, Lighthouse CI (perf 0,96 / a11y 1 / bonnes pratiques 1), audit scripté des en-têtes (note A), guide `docs/deploiement.md` |
 | Comptes (L2 ✅*) | Schéma Postgres + RLS testés sur un vrai Postgres (PGlite), synchronisation hors ligne d'abord (file persistée, curseur, fusion, dédoublonnage multi-appareils), connexion lien magique / Google, déconnexion avec choix. **En attente d'un projet Supabase** (`docs/supabase.md`) : sans configuration, l'app reste en mode local |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
-| Persistance | `localStorage` versionné (`focusdeck:v1:*`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
-| Qualité (L0 ✅) | TS strict, ESLint strict, 49 tests Vitest (couverture 91 %, `utils/` 97 %, seuils bloquants), 6 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (137 kB / 180 kB), CI GitHub Actions |
+| Tâches avancées (L4 ✅) | Projets (nom, couleur accessible, client, archivage), tâche active liée au cycle Focus et enregistrée sur la session, compteur de pomodoros réalisés / estimés avec alerte de dépassement, report au lendemain (manuel + automatique), annulation de suppression par toast, saisie rapide `#projet ~3`, mode plein écran concentration (`F`), rapport du jour (Markdown, PDF, écran) groupé par projet avec temps par projet |
+| Persistance | `localStorage` versionné (`focusdeck:v2:*`, migration testée depuis le format v1 de la v0.1 : `src/data/migrations.ts`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
+| Qualité (L0 ✅) | TS strict, ESLint strict, 176 tests Vitest dont RLS sur Postgres réel (couverture 94 %, `utils/` 98 %, seuils bloquants), 11 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (168 kB / 180 kB), Lighthouse CI, CI GitHub Actions |
 
 Limites connues : pas de compte ni de sync multi-appareils ; historique limité au jour
 courant dans l'interface ; notifications non fiables sur mobile (pas de Service
@@ -68,10 +69,10 @@ Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais 
 | --- | --- | --- | --- |
 | EF-T01 | Les trois modes, durées réglables (bornes actuelles conservées) | M | ✅ |
 | EF-T02 | Le minuteur survit au rechargement, à la mise en veille et à un onglet en arrière-plan sans dérive > 1 s | M | ✅ |
-| EF-T03 | Une **tâche active** peut être associée au cycle Focus en cours ; la session enregistrée référence cette tâche | M | L4 |
+| EF-T03 | Une **tâche active** peut être associée au cycle Focus en cours ; la session enregistrée référence cette tâche | M | ✅ L4 |
 | EF-T04 | Le minuteur est synchronisé entre appareils connectés (démarrer sur l'ordinateur, voir le décompte sur le téléphone) | S | ✅ L2* |
 | EF-T05 | Sons au choix (3 carillons minimum + silencieux), volume, son d'ambiance optionnel (bruit brun) | C | L5 |
-| EF-T06 | Mode « plein écran concentration » : cadran seul, tout le reste masqué | C | L4 |
+| EF-T06 | Mode « plein écran concentration » : cadran seul, tout le reste masqué | C | ✅ L4 |
 | EF-T07 | Objectif quotidien de cycles (ex. 8) avec jauge | S | L3 |
 
 ### 4.2 Micro-objectifs
@@ -79,12 +80,12 @@ Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais 
 | ID | Exigence | Prio | Lot |
 | --- | --- | --- | --- |
 | EF-O01 | CRUD, cochage, renommage, filtres, réordonnancement | M | ✅ |
-| EF-O02 | Estimation en pomodoros (1–8) et compteur de pomodoros réalisés par tâche | M | L4 |
-| EF-O03 | **Projets** (nom, couleur, client optionnel) ; une tâche appartient à 0 ou 1 projet | M | L4 |
-| EF-O04 | Étiquettes libres (max 5 par tâche) | C | L4 |
-| EF-O05 | Report d'une tâche non terminée au lendemain (manuel + option automatique) | S | L4 |
-| EF-O06 | Annuler une suppression (toast « Annuler » 5 s) | S | L4 |
-| EF-O07 | Saisie rapide : `#projet` et `~3` (estimation) dans le titre sont interprétés | C | L4 |
+| EF-O02 | Estimation en pomodoros (1–8) et compteur de pomodoros réalisés par tâche | M | ✅ L4 |
+| EF-O03 | **Projets** (nom, couleur, client optionnel) ; une tâche appartient à 0 ou 1 projet | M | ✅ L4 |
+| EF-O04 | Étiquettes libres (max 5 par tâche) | C | à replanifier (non livré en L4) |
+| EF-O05 | Report d'une tâche non terminée au lendemain (manuel + option automatique) | S | ✅ L4 |
+| EF-O06 | Annuler une suppression (toast « Annuler » 5 s) | S | ✅ L4 |
+| EF-O07 | Saisie rapide : `#projet` et `~3` (estimation) dans le titre sont interprétés | C | ✅ L4 |
 
 ### 4.3 Rapports et statistiques
 
@@ -240,7 +241,7 @@ interface FocusRepository {
 
 > **Implémenté au lot L1** (`src/data/repository.ts`) sous une forme ajustée : lecture
 > synchrone `read(clé)` depuis le cache local (démarrage sans chargement, hors ligne d'abord),
-> écriture asynchrone `write(clé, valeur)` par collection (`settings`, `tasks`, `logs`, `timer`),
+> écriture asynchrone `write(clé, valeur)` par collection (`settings`, `tasks`, `projects`, `logs`, `timer`),
 > `listDays(from, to)` et `subscribe(listener)`. Les opérations unitaires (`upsertTasks`,
 > `appendSession`…) seront dérivées par `SyncedRepository` en calculant le différentiel avec
 > son cache : l'état React reste la seule source de vérité de l'UI.
@@ -270,6 +271,14 @@ subscriptions (user_id uuid pk, stripe_customer_id text, status text, price_id t
 ```
 
 Index : `sessions (user_id, day)`, `tasks (user_id, updated_at)`.
+Lot L4 (`20261021000000_l4_projects.sql`) : `projects.created_at`, `tasks.planned_for date`
+(report au lendemain), limite de 100 projets. `tasks.project_id` et `sessions.task_id` sont
+des références **sans clé étrangère** : une tâche créée puis supprimée hors ligne n'atteint
+jamais le serveur alors que ses sessions, si ; une clé étrangère bloquerait alors toute la file
+de synchronisation. Une référence inconnue s'affiche « sans projet » / « sans tâche ».
+Côté client, l'ordre d'une tâche reste sa place dans la liste (`position` n'est calculé qu'à
+l'envoi) et une suppression reste une entrée de la file (`deleted_at` n'existe que côté serveur) :
+ni `position` ni `deletedAt` ne sont donc stockés sur la `Task` locale.
 RLS : `user_id = auth.uid()` en lecture/écriture sur toutes les tables, sauf
 `subscriptions` (lecture seule pour l'utilisateur, écriture service role).
 Les limites du plan Gratuit (EF-S01) sont appliquées par politique/trigger, pas par le client.
@@ -308,7 +317,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 | **L1** ✅ | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
 | **L2** ✅* | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
 | **L3** | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |
-| **L4** | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07, EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |
+| **L4** ✅ | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07 (sauf O04), EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |
 | **L5** | PWA, notifications SW, thème clair, i18n, sons, onboarding | EF-X02..X06, EF-T05 | L1 | `05-pwa-theme-i18n.md` |
 | **L6** | SaaS : plans, Stripe, droits serveur, landing, PDF personnalisé | EF-S01..S06, EF-R05, SEC-5 | L2, L3 | `06-saas-stripe.md` |
 | **L7** ✅ | Déploiement, en-têtes de sécurité, Sentry, Lighthouse CI | SEC-3, OBS-1/2, PERF-2/3 | L0 | `07-deploiement-observabilite.md` |

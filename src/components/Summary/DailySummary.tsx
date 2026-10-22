@@ -1,7 +1,7 @@
 import { CheckCircle2, Clock, Coffee, FileText, Flame, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useFocus } from '../../context/FocusContext';
-import { buildDailyReport } from '../../utils/report';
+import { buildDailyReport, groupLabel } from '../../utils/report';
 import { formatDuration } from '../../utils/format';
 import { Button, IconButton } from '../ui/Button';
 import { Card, CardHeader } from '../ui/Card';
@@ -10,12 +10,12 @@ import { SessionTimeline } from './SessionTimeline';
 import { StatCard } from './StatCard';
 
 export function DailySummary() {
-  const { todayLog, tasks, clearTodayLog } = useFocus();
+  const { todayLog, tasks, projects, clearTodayLog } = useFocus();
   // Horodatage de génération, fixé à l'ouverture de la boîte de dialogue du rapport.
   const [reportOpenedAt, setReportOpenedAt] = useState<number | null>(null);
   const report = useMemo(
-    () => buildDailyReport(todayLog, tasks, reportOpenedAt ?? undefined),
-    [todayLog, tasks, reportOpenedAt],
+    () => buildDailyReport(todayLog, tasks, reportOpenedAt ?? undefined, projects),
+    [todayLog, tasks, reportOpenedAt, projects],
   );
 
   return (
@@ -75,6 +75,24 @@ export function DailySummary() {
           accent="#60a5fa"
         />
       </div>
+
+      {report.projectGroups.length > 0 && (
+        <section aria-label="Temps par projet" className="mt-5">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-zinc-400">Temps par projet</h3>
+          <ul className="flex flex-wrap gap-2">
+            {report.projectGroups.map((group) => (
+              <li
+                key={group.projectId ?? 'none'}
+                className="flex items-center gap-2 rounded-xl bg-white/[0.04] px-3 py-1.5 text-sm ring-1 ring-white/[0.06]"
+              >
+                <span aria-hidden className="size-2 rounded-full bg-zinc-500" style={group.color ? { backgroundColor: group.color } : undefined} />
+                <span className="text-zinc-200">{groupLabel(group)}</span>
+                <span className="font-mono text-xs tabular-nums text-zinc-400">{formatDuration(group.focusSeconds)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="mt-5">
         <SessionTimeline sessions={todayLog.sessions} />

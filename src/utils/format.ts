@@ -47,3 +47,14 @@ export function formatTime(timestamp: number): string {
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count > 1 ? plural : singular}`;
 }
+
+/** Décale une clé de jour de `days` jours (calendrier local, changements d'heure compris). */
+export function shiftDateKey(key: string, days: number): string {
+  const date = fromDateKey(key);
+  return toDateKey(new Date(date.getFullYear(), date.getMonth(), date.getDate() + days));
+}
+
+/** Date courte lisible : `lun. 20 oct.`. */
+export function formatShortDate(key: string): string {
+  return new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }).format(fromDateKey(key));
+}

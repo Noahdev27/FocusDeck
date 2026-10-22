@@ -12,7 +12,9 @@ import type { TimerMode, TimerSnapshot, TimerStatus } from '../types';
 import { usePersistentState } from '../data';
 import { MODE_META } from '../utils/constants';
 import {
+  assignTask,
   completePhase,
+  focusOnTask as focusOnTaskTransition,
   createIdleSnapshot,
   getModeDurationMs,
   getRemainingMs,
@@ -42,6 +44,8 @@ export interface TimerContextValue {
   /** Progression de la phase courante, entre 0 et 1. */
   progress: number;
   cyclesInSet: number;
+  /** Tâche active (EF-T03). */
+  taskId: string | null;
   lastCompletion: PhaseCompletion | null;
   start: () => void;
   pause: () => void;
@@ -49,6 +53,10 @@ export interface TimerContextValue {
   reset: () => void;
   skip: () => void;
   setMode: (mode: TimerMode) => void;
+  /** « Lancer un focus sur cette tâche ». */
+  focusOnTask: (taskId: string) => void;
+  /** Associe ou détache (`null`) la tâche active sans toucher au décompte. */
+  setActiveTask: (taskId: string | null) => void;
 }
 
 const TimerContext = createContext<TimerContextValue | null>(null);
@@ -179,6 +187,19 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     [apply, snapshot],
   );
 
+  const focusOnTask = useCallback(
+    (taskId: string) => {
+      unlockAudio();
+      apply(focusOnTaskTransition(snapshot, taskId, settingsRef.current, Date.now()));
+    },
+    [apply, snapshot],
+  );
+
+  const setActiveTask = useCallback(
+    (taskId: string | null) => setSnapshot((previous) => assignTask(previous, taskId)),
+    [setSnapshot],
+  );
+
   const value = useMemo<TimerContextValue>(
     () => ({
       mode: snapshot.mode,
@@ -187,6 +208,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       durationMs: snapshot.durationMs,
       progress: snapshot.durationMs === 0 ? 0 : 1 - remainingMs / snapshot.durationMs,
       cyclesInSet: snapshot.cyclesInSet,
+      taskId: snapshot.taskId,
       lastCompletion,
       start,
       pause,
@@ -194,8 +216,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       reset,
       skip,
       setMode,
+      focusOnTask,
+      setActiveTask,
     }),
-    [snapshot, remainingMs, lastCompletion, start, pause, toggle, reset, skip, setMode],
+    [snapshot, remainingMs, lastCompletion, start, pause, toggle, reset, skip, setMode, focusOnTask, setActiveTask],
   );
 
   return <TimerContext.Provider value={value}>{children}</TimerContext.Provider>;

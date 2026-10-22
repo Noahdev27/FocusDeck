@@ -1,9 +1,10 @@
-import type { SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
+import type { Project, SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
 
 /** Modification locale en attente d'envoi au serveur. */
 export type OutboxEntry =
   | { type: 'settings'; settings: TimerSettings }
   | { type: 'timer'; snapshot: TimerSnapshot | null }
+  | { type: 'project'; project: Project }
   | { type: 'task'; task: Task; position: number }
   | { type: 'task-delete'; id: string }
   | { type: 'session'; date: string; session: SessionRecord }
@@ -26,6 +27,8 @@ export interface RemotePull {
   /** Présent seulement s'il a changé depuis le curseur. */
   settings?: TimerSettings;
   timer?: TimerSnapshot | null;
+  /** Projets modifiés (jamais supprimés : on les archive). */
+  projects: Project[];
   tasks: RemoteTask[];
   sessions: RemoteSession[];
   /** Curseur à réutiliser pour la prochaine lecture incrémentale. */

@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { TimerSettings } from '../types';
 import { DEFAULT_SETTINGS } from './constants';
 import {
+  assignTask,
   completePhase,
   createIdleSnapshot,
+  focusOnTask,
   getNextMode,
   getRemainingMs,
   MIN_RECORDED_PARTIAL_MS,
@@ -118,5 +120,42 @@ describe('sessionIdFor', () => {
   it('est déterministe pour une même phase', () => {
     expect(sessionIdFor('focus', 1792160000000)).toBe('focus:1792160000000');
     expect(sessionIdFor('focus', 1)).not.toBe(sessionIdFor('shortBreak', 1));
+  });
+});
+
+describe('tâche active (EF-T03)', () => {
+  it('la session Focus porte la tâche ; la tâche est conservée d’une phase à l’autre', () => {
+    const { next: started, record: none } = focusOnTask(createIdleSnapshot('focus', settings), 't1', settings, T0);
+    expect(none).toBeNull();
+    expect(started).toMatchObject({ mode: 'focus', status: 'running', taskId: 't1' });
+
+    const { next: pause, record } = completePhase(started, settings, T0 + 25 * 60_000);
+    expect(record).toMatchObject({ mode: 'focus', completed: true, taskId: 't1' });
+    expect(pause).toMatchObject({ mode: 'shortBreak', taskId: 't1' });
+
+    // Une pause n'est jamais attribuée à une tâche.
+    const { record: breakRecord } = completePhase(startTimer(pause, T0), settings, T0 + 5 * 60_000);
+    expect(breakRecord).toMatchObject({ mode: 'shortBreak', taskId: null });
+  });
+
+  it('depuis une pause : historise la pause interrompue puis démarre un Focus sur la tâche', () => {
+    const inBreak = startTimer(createIdleSnapshot('shortBreak', settings), T0);
+    const { next, record } = focusOnTask(inBreak, 't2', settings, T0 + 60_000);
+    expect(record).toMatchObject({ mode: 'shortBreak', completed: false, taskId: null });
+    expect(next).toMatchObject({ mode: 'focus', status: 'running', taskId: 't2', endsAt: T0 + 60_000 + 25 * 60_000 });
+  });
+
+  it('un Focus déjà en cours continue, attribué à la nouvelle tâche', () => {
+    const running = startTimer(createIdleSnapshot('focus', settings, 0, 't1'), T0);
+    const { next } = focusOnTask(running, 't2', settings, T0 + 60_000);
+    expect(next).toMatchObject({ status: 'running', endsAt: running.endsAt, taskId: 't2' });
+  });
+
+  it('assignTask détache la tâche sans toucher au décompte', () => {
+    const running = startTimer(createIdleSnapshot('focus', settings, 0, 't1'), T0);
+    expect(assignTask(running, null)).toEqual({ ...running, taskId: null });
+    expect(assignTask(running, 't1')).toBe(running);
+    expect(skipPhase(running, settings, T0 + 60_000).next.taskId).toBe('t1');
+    expect(switchMode(running, 'longBreak', settings, T0).next.taskId).toBe('t1');
   });
 });

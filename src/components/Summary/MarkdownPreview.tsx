@@ -40,7 +40,7 @@ export function MarkdownPreview({ markdown }: { markdown: string }) {
               <tr key={rowIndex} className="border-t border-white/[0.05]">
                 {row.map((cell, cellIndex) => (
                   <td key={cellIndex} className={cellIndex === 0 ? 'px-3 py-2 text-zinc-400' : 'px-3 py-2 font-medium text-white'}>
-                    {cell}
+                    {unescape(cell)}
                   </td>
                 ))}
               </tr>
@@ -53,6 +53,12 @@ export function MarkdownPreview({ markdown }: { markdown: string }) {
         <h1 key={key} className="mb-1 text-xl font-semibold tracking-tight text-white">
           {line.slice(2)}
         </h1>,
+      );
+    } else if (line.startsWith('### ')) {
+      blocks.push(
+        <h3 key={key} className="mt-3 mb-1 text-xs font-semibold text-violet-200">
+          {unescape(line.slice(4))}
+        </h3>,
       );
     } else if (line.startsWith('## ')) {
       blocks.push(
@@ -103,7 +109,8 @@ export function MarkdownPreview({ markdown }: { markdown: string }) {
 function splitRow(row: string): string[] {
   return row
     .replace(/^\||\|$/g, '')
-    .split('|')
+    // Un `|` échappé (`\|`) fait partie du texte de la cellule.
+    .split(/(?<!\\)\|/)
     .map((cell) => cell.trim());
 }
 

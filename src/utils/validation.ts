@@ -1,7 +1,13 @@
-import type { DayLog, SessionRecord, Task, TimerMode, TimerSettings, TimerSnapshot } from '../types';
+import type { DayLog, Project, SessionRecord, Task, TimerMode, TimerSettings, TimerSnapshot } from '../types';
 import {
+  DEFAULT_PROJECT_COLOR,
   DEFAULT_SETTINGS,
+  ESTIMATE_LIMITS,
+  MAX_PROJECTS,
   MAX_TASKS,
+  PROJECT_CLIENT_MAX_LENGTH,
+  PROJECT_COLORS,
+  PROJECT_NAME_MAX_LENGTH,
   SETTINGS_LIMITS,
   TASK_TITLE_MAX_LENGTH,
   TIMER_MODES,
@@ -60,6 +66,7 @@ export function sanitizeSettings(input: unknown): TimerSettings {
     soundEnabled: readBoolean(input, 'soundEnabled', d.soundEnabled),
     notificationsEnabled: readBoolean(input, 'notificationsEnabled', d.notificationsEnabled),
     analyticsEnabled: readBoolean(input, 'analyticsEnabled', d.analyticsEnabled),
+    autoPostpone: readBoolean(input, 'autoPostpone', d.autoPostpone),
   };
 }
 
@@ -68,9 +75,29 @@ export function normalizeTaskTitle(title: string): string {
   return title.replace(/\s+/g, ' ').trim().slice(0, TASK_TITLE_MAX_LENGTH);
 }
 
+/** Texte libre court (nom de projet, client) : espaces normalisés, longueur bornée. */
+export function normalizeLabel(text: string, maxLength: number): string {
+  return text.replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const isDateKey = (value: unknown): value is string => typeof value === 'string' && DATE_KEY_PATTERN.test(value);
+
+/** Identifiant de référence (tâche, projet) : chaîne non vide et bornée, sinon `null`. */
+const readReference = (value: unknown): string | null =>
+  typeof value === 'string' && value.length > 0 && value.length <= 80 ? value : null;
+
+/** Estimation entière entre 1 et 8 pomodoros, sinon `null`. */
+export function sanitizeEstimate(value: unknown): number | null {
+  if (!isFiniteNumber(value)) return null;
+  const rounded = Math.round(value);
+  return rounded >= ESTIMATE_LIMITS.min && rounded <= ESTIMATE_LIMITS.max ? rounded : null;
+}
+
 function sanitizeTask(input: unknown): Task | null {
   if (!isRecord(input)) return null;
-  const { id, title, completed, createdAt, completedAt } = input;
+  const { id, title, completed, createdAt, completedAt, projectId, estimate, plannedFor } = input;
   if (typeof id !== 'string' || id.length === 0 || typeof title !== 'string') return null;
   const cleanTitle = normalizeTaskTitle(title);
   if (cleanTitle.length === 0 || !isFiniteNumber(createdAt)) return null;
@@ -81,6 +108,10 @@ function sanitizeTask(input: unknown): Task | null {
     completed: isDone,
     createdAt,
     completedAt: isDone && isFiniteNumber(completedAt) ? completedAt : null,
+    // Champs ajoutés en v2 : absents des données v0.1, ils prennent leur valeur neutre.
+    projectId: readReference(projectId),
+    estimate: sanitizeEstimate(estimate),
+    plannedFor: isDateKey(plannedFor) ? plannedFor : null,
   };
 }
 
@@ -99,9 +130,44 @@ export function sanitizeTasks(input: unknown): Task[] {
   return tasks;
 }
 
+const PALETTE: readonly string[] = PROJECT_COLORS.map((color) => color.value);
+
+function sanitizeProject(input: unknown): Project | null {
+  if (!isRecord(input)) return null;
+  const { id, name, color, client, createdAt, archivedAt } = input;
+  if (typeof id !== 'string' || id.length === 0 || typeof name !== 'string' || !isFiniteNumber(createdAt)) return null;
+  const cleanName = normalizeLabel(name, PROJECT_NAME_MAX_LENGTH);
+  if (cleanName.length === 0) return null;
+  const cleanClient = typeof client === 'string' ? normalizeLabel(client, PROJECT_CLIENT_MAX_LENGTH) : '';
+  return {
+    id,
+    name: cleanName,
+    color: typeof color === 'string' && PALETTE.includes(color.toLowerCase()) ? color.toLowerCase() : DEFAULT_PROJECT_COLOR,
+    client: cleanClient.length > 0 ? cleanClient : null,
+    createdAt,
+    archivedAt: isFiniteNumber(archivedAt) ? archivedAt : null,
+  };
+}
+
+/** Projets triés par date de création (ordre stable entre appareils). */
+export function sanitizeProjects(input: unknown): Project[] {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<string>();
+  const projects: Project[] = [];
+  for (const item of input) {
+    const project = sanitizeProject(item);
+    if (project && !seen.has(project.id)) {
+      seen.add(project.id);
+      projects.push(project);
+    }
+    if (projects.length >= MAX_PROJECTS) break;
+  }
+  return projects.sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
+}
+
 function sanitizeSession(input: unknown): SessionRecord | null {
   if (!isRecord(input)) return null;
-  const { id, mode, startedAt, endedAt, durationSeconds, completed } = input;
+  const { id, mode, startedAt, endedAt, durationSeconds, completed, taskId } = input;
   if (
     typeof id !== 'string' ||
     !isTimerMode(mode) ||
@@ -112,10 +178,16 @@ function sanitizeSession(input: unknown): SessionRecord | null {
   ) {
     return null;
   }
-  return { id, mode, startedAt, endedAt, durationSeconds: Math.round(durationSeconds), completed: completed === true };
+  return {
+    id,
+    mode,
+    startedAt,
+    endedAt,
+    durationSeconds: Math.round(durationSeconds),
+    completed: completed === true,
+    taskId: mode === 'focus' ? readReference(taskId) : null,
+  };
 }
-
-const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function sanitizeLogs(input: unknown): Record<string, DayLog> {
   if (!isRecord(input)) return {};
@@ -132,7 +204,7 @@ export function sanitizeLogs(input: unknown): Record<string, DayLog> {
 
 export function sanitizeTimerSnapshot(input: unknown): TimerSnapshot | null {
   if (!isRecord(input)) return null;
-  const { mode, status, remainingMs, endsAt, durationMs, startedAt, cyclesInSet } = input;
+  const { mode, status, remainingMs, endsAt, durationMs, startedAt, cyclesInSet, taskId } = input;
   if (!isTimerMode(mode) || !isFiniteNumber(durationMs) || durationMs <= 0) return null;
   if (status !== 'idle' && status !== 'running' && status !== 'paused') return null;
   if (!isFiniteNumber(remainingMs) || !isFiniteNumber(cyclesInSet)) return null;
@@ -145,5 +217,6 @@ export function sanitizeTimerSnapshot(input: unknown): TimerSnapshot | null {
     endsAt: status === 'running' && isFiniteNumber(endsAt) ? endsAt : null,
     startedAt: status !== 'idle' && isFiniteNumber(startedAt) ? startedAt : null,
     cyclesInSet: Math.max(0, Math.round(cyclesInSet)),
+    taskId: readReference(taskId),
   };
 }

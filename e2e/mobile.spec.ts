@@ -10,9 +10,13 @@ test('mobile : pas de défilement horizontal, actions atteignables', async ({ pa
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   expect(scrollWidth).toBeLessThanOrEqual(390);
 
-  for (const name of [/Démarrer/, /Phase suivante/, /Rapport/, /Réglages du minuteur/]) {
+  for (const name of [/Démarrer/, /Phase suivante/, /Rapport/, /Réglages du minuteur/, /Projets/, /Lancer un focus/, /Options de/]) {
     await expect(page.getByRole('button', { name }).first()).toBeVisible();
   }
+  // Panneau d'options d'une tâche (projet, estimation, report) : tient dans 390 px.
+  await page.getByRole('button', { name: /Options de/ }).click();
+  await expect(page.getByRole('button', { name: 'Reporter à demain' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await expectNoA11yViolations(page);
 
   // Barre de navigation basse : visible, fonctionnelle, sans masquer le contenu.

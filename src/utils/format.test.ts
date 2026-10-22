@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatClock, formatDuration, fromDateKey, toDateKey } from './format';
+import { formatClock, formatDuration, fromDateKey, shiftDateKey, toDateKey } from './format';
 
 describe('format', () => {
   it('formatClock arrondit à la seconde supérieure', () => {
@@ -20,5 +20,13 @@ describe('format', () => {
     const date = new Date(2026, 0, 5, 23, 59);
     expect(toDateKey(date)).toBe('2026-01-05');
     expect(fromDateKey('2026-01-05').getDate()).toBe(5);
+  });
+});
+
+describe('shiftDateKey', () => {
+  it('décale en tenant compte des fins de mois et d’année', () => {
+    expect(shiftDateKey('2026-10-31', 1)).toBe('2026-11-01');
+    expect(shiftDateKey('2026-12-31', 1)).toBe('2027-01-01');
+    expect(shiftDateKey('2026-03-01', -1)).toBe('2026-02-28');
   });
 });

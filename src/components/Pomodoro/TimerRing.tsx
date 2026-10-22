@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import type { TimerMode } from '../../types';
 import { MODE_META, TIMER_MODES } from '../../utils/constants';
 import { cn } from '../../utils/cn';
@@ -24,6 +24,8 @@ export function TimerRing({ mode, progress, running, pulseKey, children }: Timer
   // Le SVG est pivoté de -90° : l'angle 0 correspond au haut du cadran.
   const angle = clamped * 2 * Math.PI;
   const center = SIZE / 2;
+  // Identifiant unique : le cadran peut être affiché deux fois (mode concentration).
+  const gradientId = useId();
 
   return (
     <div className="relative mx-auto aspect-square w-full max-w-[19rem] sm:max-w-[20rem]">
@@ -54,7 +56,7 @@ export function TimerRing({ mode, progress, running, pulseKey, children }: Timer
 
       <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="relative size-full -rotate-90">
         <defs>
-          <linearGradient id="ring-gradient" x1="0" y1="0" x2="1" y2="1">
+          <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
             <motion.stop offset="0" initial={false} animate={{ stopColor: meta.from }} transition={{ duration: 0.8 }} />
             <motion.stop offset="1" initial={false} animate={{ stopColor: meta.to }} transition={{ duration: 0.8 }} />
           </linearGradient>
@@ -82,7 +84,7 @@ export function TimerRing({ mode, progress, running, pulseKey, children }: Timer
           cy={center}
           r={RADIUS}
           fill="none"
-          stroke="url(#ring-gradient)"
+          stroke={`url(#${gradientId})`}
           strokeWidth={STROKE}
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}

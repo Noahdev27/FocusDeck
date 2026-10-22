@@ -5,7 +5,8 @@ const SHORTCUTS: [string, string][] = [
   ['R', 'Réinitialiser la phase'],
   ['S', 'Passer à la phase suivante'],
   ['1 · 2 · 3', 'Focus · Pause courte · Pause longue'],
-  ['N', 'Nouvel objectif'],
+  ['F', 'Mode concentration plein écran (Échap pour sortir)'],
+  ['N', 'Nouvel objectif (#projet et ~3 reconnus)'],
   [',', 'Ouvrir les réglages'],
 ];
 

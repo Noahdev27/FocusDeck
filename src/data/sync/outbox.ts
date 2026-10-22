@@ -1,8 +1,8 @@
-import type { DayLog, SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
+import type { DayLog, Project, SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
 import { LOG_RETENTION_DAYS } from '../../utils/constants';
 import { deepEqual } from '../../utils/equal';
 import { fromDateKey } from '../../utils/format';
-import { sanitizeLogs, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../../utils/validation';
+import { sanitizeLogs, sanitizeProjects, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../../utils/validation';
 import type { OutboxEntry } from './types';
 
 /** Clé de regroupement : seule la dernière modification d'un même objet est envoyée. */
@@ -11,6 +11,8 @@ export function entryKey(entry: OutboxEntry): string {
     case 'settings':
     case 'timer':
       return entry.type;
+    case 'project':
+      return `project:${entry.project.id}`;
     case 'task':
       return `task:${entry.task.id}`;
     case 'task-delete':
@@ -47,6 +49,15 @@ export function diffSettings(previous: TimerSettings, next: TimerSettings): Outb
 
 export function diffTimer(previous: TimerSnapshot | null, next: TimerSnapshot | null): OutboxEntry[] {
   return same(previous, next) ? [] : [{ type: 'timer', snapshot: next }];
+}
+
+/**
+ * Projets ajoutés ou modifiés → upsert. Un projet n'est jamais supprimé (il est archivé) :
+ * une disparition locale (cache vidé, limite atteinte) n'est donc pas propagée.
+ */
+export function diffProjects(previous: readonly Project[], next: readonly Project[]): OutboxEntry[] {
+  const before = new Map(previous.map((project) => [project.id, project]));
+  return next.filter((project) => !same(before.get(project.id), project)).map((project) => ({ type: 'project', project }));
 }
 
 /** Tâches ajoutées, modifiées ou déplacées → upsert ; tâches retirées → suppression. */
@@ -106,6 +117,11 @@ export function sanitizeOutbox(input: unknown): OutboxEntry[] {
       case 'timer':
         entries.push({ type: 'timer', snapshot: sanitizeTimerSnapshot(entry.snapshot) });
         break;
+      case 'project': {
+        const [project] = sanitizeProjects([entry.project]);
+        if (project) entries.push({ type: 'project', project });
+        break;
+      }
       case 'task': {
         const [task] = sanitizeTasks([entry.task]);
         if (task && typeof entry.position === 'number') entries.push({ type: 'task', task, position: entry.position });

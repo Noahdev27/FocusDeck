@@ -1,9 +1,11 @@
-import type { DayLog, Task, TimerSettings, TimerSnapshot } from '../types';
+import type { DayLog, Project, Task, TimerSettings, TimerSnapshot } from '../types';
 
 /** Ensemble des données persistées de l'application. */
 export interface AppData {
   settings: TimerSettings;
   tasks: Task[];
+  /** Projets (lot L4), archivés compris. */
+  projects: Project[];
   /** Journal des sessions par jour (`YYYY-MM-DD`). */
   logs: Record<string, DayLog>;
   /** `null` : aucun minuteur enregistré (première visite). */

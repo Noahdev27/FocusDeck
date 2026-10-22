@@ -49,10 +49,11 @@ src/
 ├── routes.ts                   # Liens de navigation + chargeurs paresseux des pages
 ├── pages/                      # Une page par route (/, /stats, /rapports, /reglages, 404)
 ├── components/{Layout,Pomodoro,Todo,Summary,ui}/   # Présentation uniquement
-├── context/FocusContext.tsx    # Réglages, tâches, journal des sessions (persistés)
+├── context/FocusContext.tsx    # Réglages, tâches, projets, journal des sessions (persistés)
 ├── context/TimerContext.tsx    # Moteur du minuteur : ticks, fin de phase, alertes
 ├── data/                       # SEUL accès à la persistance : FocusRepository,
-│                               # LocalRepository, RepositoryProvider, usePersistentState
+│                               # LocalRepository, RepositoryProvider, usePersistentState,
+│                               # migrations.ts (stockage v1 → v2, exécutée une fois)
 │   ├── sync/                   # SyncedRepository (file, fusion, curseur), serveur mémoire de test
 │   └── supabase/               # RemoteStore Supabase (lecture incrémentale, Realtime)
 ├── auth/                       # Supabase Auth (lien magique, Google), chargé à la demande
@@ -60,7 +61,8 @@ src/
 │                               # privacy.ts filtre toute donnée personnelle avant envoi
 ├── hooks/                      # Raccourcis clavier, jour courant, titre du document
 ├── types/index.ts              # Types partagés
-└── utils/                      # Logique pure et testée : timer, logs, report, pdf, validation…
+└── utils/                      # Logique pure et testée : timer, logs, report, pdf, validation,
+                                # tasks (report, annulation, pomodoros), projects, quickEntry…
 ```
 
 Règles :
@@ -86,8 +88,20 @@ Règles :
 - Les transitions de phase (`completePhase`, `skipPhase`, `switchMode` dans
   `utils/timer.ts`) retournent `{ next, record }` ; le contexte applique l'état et
   historise. Toute nouvelle transition suit ce modèle.
-- Clés de stockage versionnées `focusdeck:v1:*` (`utils/constants.ts`). Changer un
-  format = incrémenter la version + écrire une migration testée.
+- Clés de stockage versionnées `focusdeck:v2:*` (`utils/constants.ts`, v2 depuis le lot L4).
+  Changer un format = incrémenter la version + étendre `data/migrations.ts` (marqueur
+  `focusdeck:vN:migrated`, anciennes clés conservées pour un retour arrière) + test avec des
+  données réelles de la version précédente (`data/migrations.test.ts`). Un champ ajouté à un
+  type persisté doit avoir une valeur neutre dans son sanitizer (données anciennes).
+- **Projets, tâche active, pomodoros (L4)** : la tâche active vit dans `TimerSnapshot.taskId`
+  (synchronisée, conservée d'une phase à l'autre) ; seules les sessions Focus portent `taskId`.
+  Le nombre de pomodoros d'une tâche est **dérivé** du journal (`countPomodoros`), jamais
+  stocké. Un projet ne se supprime pas, il s'archive. `tasks.project_id` / `sessions.task_id`
+  n'ont pas de clé étrangère en base (une référence orpheline bloquerait la file de sync).
+- **Suppression annulable** : `deleteTask`/`clearCompletedTasks` renvoient les tâches retirées
+  avec leur position ; les passer à `restoreTasks` depuis l'action « Annuler » d'un toast
+  (`components/ui/Toast`, `useToast().show(...)`). `focusAction: true` quand l'action vient
+  du clavier (`event.detail === 0`) : le bouton activé a disparu, le focus va sur « Annuler ».
 - Animations : Framer Motion, `MotionConfig reducedMotion="user"` est actif.
   Pas d'animation qui bloque une interaction. **Ne jamais animer en JavaScript la couleur,
   le flou ou la taille de grands éléments floutés** (fond, halos) : empiler des calques et ne
@@ -99,7 +113,10 @@ Règles :
 - Contraste : texte secondaire en `text-zinc-400` minimum sur fond sombre (`zinc-500/600`
   échouent au contraste AA).
 - Accessibilité : rôles ARIA corrects (switch, tab, dialog, checkbox, timer), focus
-  visible, navigation clavier complète. Les modales passent par `components/ui/Modal`.
+  visible, navigation clavier complète. Les modales passent par `components/ui/Modal` ; seule
+  exception, le mode concentration (`Pomodoro/FocusMode`) : vue plein écran qui rend le reste
+  de l'application `inert`. Aucun élément `role="status"` permanent (les tests e2e ciblent
+  l'unique `getByRole('status')` de fin de phase) : la région des toasts utilise `aria-live`.
 - Pas de `dangerouslySetInnerHTML`. Le rendu Markdown passe par `MarkdownPreview`.
 - Pas de nouvelle dépendance sans justification (taille du bundle : budget dans le
   cahier des charges, ENF-PERF).
@@ -135,7 +152,11 @@ bloqué en production alors qu'il marche avec `vite dev`.
 - Les tests Playwright avec `page.clock.install()` figent `requestAnimationFrame` pour
   **tout le contexte** : les animations de sortie (modales) ne se terminent pas. Utiliser
   `clock.fastForward` pour le minuteur, puis un **nouveau contexte** (avec
-  `storageState`) pour le reste.
+  `storageState`) pour le reste : `openCheckedPage(browser, options)` de `e2e/fixtures.ts`
+  applique les mêmes en-têtes et contrôles (console, CSP) que la fixture `page`
+  (exemple : `e2e/tasks.spec.ts`).
+- Dates de test : l'e2e tourne en `Europe/Paris` ; un script Node qui prépare des données
+  doit calculer le jour dans ce fuseau (sinon, vers minuit, « demain » devient « aujourd'hui »).
 - `react-hooks` v7 interdit `Date.now()` et l'écriture de refs pendant le rendu :
   synchroniser les refs dans un `useEffect`.
 - Réentrance : une fonction asynchrone qui marque « en cours » APRÈS avoir lancé son travail

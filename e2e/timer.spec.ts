@@ -17,7 +17,7 @@ test('première visite : objectifs, cycle Focus complet, passage en pause', asyn
   await expect(page.getByRole('status')).toContainText('Cycle Focus terminé');
   await expect(page.getByRole('timer')).toHaveText('05:00');
 
-  const logs = await page.evaluate(() => localStorage.getItem('focusdeck:v1:logs') ?? '{}');
+  const logs = await page.evaluate(() => localStorage.getItem('focusdeck:v2:logs') ?? '{}');
   const sessions = Object.values(JSON.parse(logs) as Record<string, { sessions: { mode: string; completed: boolean }[] }>)[0]?.sessions;
   expect(sessions).toEqual([expect.objectContaining({ mode: 'focus', completed: true })]);
 });

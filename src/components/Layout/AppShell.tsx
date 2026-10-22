@@ -7,6 +7,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useKeyboardShortcuts, type ShortcutMap } from '../../hooks/useKeyboardShortcuts';
 import { MODE_META } from '../../utils/constants';
 import { formatClock } from '../../utils/format';
+import { useFocusMode } from '../Pomodoro/FocusMode';
 import { SettingsDialog } from '../Pomodoro/SettingsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { AmbientBackground } from './AmbientBackground';
@@ -28,6 +29,7 @@ export function AppShell() {
   );
 
   const { toggle, reset, skip, setMode } = timer;
+  const { enter: enterFocusMode } = useFocusMode();
   const shortcuts = useMemo<ShortcutMap>(
     () => ({
       Space: toggle,
@@ -37,8 +39,9 @@ export function AppShell() {
       Digit2: () => setMode('shortBreak'),
       Digit3: () => setMode('longBreak'),
       Comma: () => setSettingsOpen(true),
+      KeyF: enterFocusMode,
     }),
-    [toggle, reset, skip, setMode],
+    [toggle, reset, skip, setMode, enterFocusMode],
   );
   useKeyboardShortcuts(shortcuts);
 

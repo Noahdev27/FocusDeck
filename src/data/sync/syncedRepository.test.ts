@@ -6,14 +6,14 @@ import { createLocalRepository } from '../localRepository';
 import { MemoryStorage } from '../memoryStorage';
 import { describeRepositoryContract } from '../repositoryContract';
 import { createMemoryRemote, createMemoryServer, type MemoryServer } from './memoryRemote';
-import { createSyncedRepository } from './syncedRepository';
+import { createSyncedRepository, syncStorageKey } from './syncedRepository';
 
 const USER = 'user-1';
 const NOW = new Date(2026, 9, 16, 10, 0).getTime();
 const TODAY = toDateKey(NOW);
 
-const task = (id: string, title = id): Task => ({ id, title, completed: false, createdAt: 1, completedAt: null });
-const session = (id: string): SessionRecord => ({ id, mode: 'focus', startedAt: NOW - 1_500_000, endedAt: NOW, durationSeconds: 1500, completed: true });
+const task = (id: string, title = id): Task => ({ id, title, completed: false, createdAt: 1, completedAt: null, projectId: null, estimate: null, plannedFor: null });
+const session = (id: string): SessionRecord => ({ id, mode: 'focus', startedAt: NOW - 1_500_000, endedAt: NOW, durationSeconds: 1500, completed: true, taskId: null });
 
 /** Un « appareil » : stockage local propre + accès au serveur partagé. */
 function device(server: MemoryServer, storage = new MemoryStorage()) {
@@ -128,7 +128,7 @@ describe('SyncedRepository — synchronisation', () => {
     expect([...server.sessions.keys()]).toEqual(['s1']);
 
     // Reconnexion depuis le même appareil (curseur oublié) : aucun doublon.
-    storage.removeItem(`focusdeck:v1:sync:${USER}:cursor`);
+    storage.removeItem(syncStorageKey(USER, 'cursor'));
     const again = device(server, storage);
     await settle(again.repository);
     expect(again.repository.read('tasks')).toHaveLength(2);
@@ -187,7 +187,7 @@ describe('SyncedRepository — synchronisation', () => {
     const server = createMemoryServer();
     const a = device(server);
     const b = device(server);
-    const snapshot = { mode: 'focus' as const, status: 'running' as const, remainingMs: 0, endsAt: NOW + 60_000, durationMs: 1_500_000, startedAt: NOW, cyclesInSet: 0 };
+    const snapshot = { mode: 'focus' as const, status: 'running' as const, remainingMs: 0, endsAt: NOW + 60_000, durationMs: 1_500_000, startedAt: NOW, cyclesInSet: 0, taskId: null };
     await a.repository.write('timer', snapshot);
     await settle(a.repository, b.repository);
     expect(b.repository.read('timer')).toEqual(snapshot);
@@ -247,6 +247,41 @@ describe('SyncedRepository — synchronisation', () => {
     window.dispatchEvent(new Event('online'));
     await vi.waitFor(() => expect(b.repository.getStatus().state).toBe('synced'));
     b.repository.dispose();
+  });
+});
+
+describe('SyncedRepository — lot L4', () => {
+  it('synchronise projets, champs des tâches et tâche des sessions entre appareils', async () => {
+    const server = createMemoryServer();
+    const laptop = device(server);
+    const phone = device(server);
+    const project = { id: 'p1', name: 'Site Acme', color: '#34d399', client: 'Acme', createdAt: 1, archivedAt: null };
+    const planned = { ...task('t1', 'Maquette'), projectId: 'p1', estimate: 3, plannedFor: '2026-10-17' };
+
+    await laptop.repository.write('projects', [project]);
+    await laptop.repository.write('tasks', [planned]);
+    await laptop.repository.write('logs', { [TODAY]: { date: TODAY, sessions: [{ ...session('focus:1'), taskId: 't1' }] } });
+    await settle(laptop.repository, phone.repository);
+
+    expect(phone.repository.read('projects')).toEqual([project]);
+    expect(phone.repository.read('tasks')).toEqual([planned]);
+    expect(phone.repository.read('logs')[TODAY]?.sessions[0]?.taskId).toBe('t1');
+
+    // Archivage sur le téléphone → visible sur l'ordinateur.
+    await phone.repository.write('projects', [{ ...project, archivedAt: 9 }]);
+    await settle(phone.repository, laptop.repository);
+    expect(laptop.repository.read('projects')[0]?.archivedAt).toBe(9);
+  });
+
+  it('EF-C03 : les projets créés sans compte sont envoyés à la première connexion', async () => {
+    const server = createMemoryServer();
+    const storage = new MemoryStorage();
+    await createLocalRepository(storage, new EventTarget()).write('projects', [
+      { id: 'local', name: 'Perso', color: '#fb7185', client: null, createdAt: 1, archivedAt: null },
+    ]);
+    const signedIn = device(server, storage);
+    await settle(signedIn.repository);
+    expect([...server.projects.keys()]).toEqual(['local']);
   });
 });
 

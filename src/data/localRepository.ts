@@ -1,35 +1,20 @@
 import { STORAGE_KEYS } from '../utils/constants';
-import { sanitizeLogs, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../utils/validation';
+import { migrateStorage, parseStored, SANITIZERS } from './migrations';
 import type { AppData, CollectionKey, FocusRepository, RepositoryChange } from './repository';
-
-const SANITIZERS: { [K in CollectionKey]: (raw: unknown) => AppData[K] } = {
-  settings: sanitizeSettings,
-  tasks: sanitizeTasks,
-  logs: sanitizeLogs,
-  timer: sanitizeTimerSnapshot,
-};
 
 const KEYS = Object.keys(SANITIZERS) as CollectionKey[];
 
-function parse(raw: string | null): unknown {
-  if (raw === null) return undefined;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    // JSON invalide (données corrompues) : le sanitizer retombera sur les valeurs par défaut.
-    return undefined;
-  }
-}
-
 /**
- * Persistance dans `localStorage` (mode sans compte). Reprend exactement le format
- * historique : clés `focusdeck:v1:*`, JSON, validation à chaque lecture.
- * Les autres onglets sont suivis via l'événement `storage`.
+ * Persistance dans `localStorage` (mode sans compte) : clés `focusdeck:v2:*`, JSON,
+ * validation à chaque lecture. Les données d'une version antérieure sont migrées à la
+ * création (`migrateStorage`). Les autres onglets sont suivis via l'événement `storage`.
  */
 export function createLocalRepository(
   storage: Storage = window.localStorage,
   events: Pick<Window, 'addEventListener' | 'removeEventListener'> = window,
 ): FocusRepository {
+  migrateStorage(storage);
+
   const read = <K extends CollectionKey>(key: K): AppData[K] => {
     let raw: string | null = null;
     try {
@@ -37,7 +22,7 @@ export function createLocalRepository(
     } catch {
       // Stockage inaccessible (mode privé strict, quotas…).
     }
-    return SANITIZERS[key](parse(raw));
+    return SANITIZERS[key](parseStored(raw));
   };
 
   return {

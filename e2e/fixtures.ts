@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
-import { test as base, expect, type Page } from '@playwright/test';
+import { test as base, expect, type Browser, type BrowserContextOptions, type Page } from '@playwright/test';
 
 interface VercelConfig {
   headers: { source: string; headers: { key: string; value: string }[] }[];
@@ -19,29 +19,53 @@ interface Fixtures {
   problems: string[];
 }
 
+/** Applique les en-têtes de production et relève erreurs console, exceptions et violations CSP. */
+async function watchProblems(page: Page): Promise<string[]> {
+  const problems: string[] = [];
+  await page.route('**/*', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, headers: { ...response.headers(), ...productionHeaders } });
+  });
+  page.on('console', (message) => {
+    if (message.type() === 'error') problems.push(`console: ${message.text()}`);
+  });
+  page.on('pageerror', (error) => problems.push(`exception: ${error.message}`));
+  await page.exposeFunction('__reportCsp', (detail: string) => problems.push(`CSP: ${detail}`));
+  await page.addInitScript(() => {
+    document.addEventListener('securitypolicyviolation', (event) => {
+      (window as unknown as { __reportCsp: (d: string) => void }).__reportCsp(`${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
+  return problems;
+}
+
 export const test = base.extend<Fixtures>({
   problems: async ({ page }, provide) => {
-    const problems: string[] = [];
-    await page.route('**/*', async (route) => {
-      const response = await route.fetch();
-      await route.fulfill({ response, headers: { ...response.headers(), ...productionHeaders } });
-    });
-    page.on('console', (message) => {
-      if (message.type() === 'error') problems.push(`console: ${message.text()}`);
-    });
-    page.on('pageerror', (error) => problems.push(`exception: ${error.message}`));
-    await page.exposeFunction('__reportCsp', (detail: string) => problems.push(`CSP: ${detail}`));
-    await page.addInitScript(() => {
-      document.addEventListener('securitypolicyviolation', (event) => {
-        (window as unknown as { __reportCsp: (d: string) => void }).__reportCsp(
-          `${event.violatedDirective} ${event.blockedURI}`,
-        );
-      });
-    });
+    const problems = await watchProblems(page);
     await provide(problems);
     expect(problems, 'aucune erreur console ni violation CSP').toEqual([]);
   },
 });
+
+/**
+ * Nouveau contexte (ex. avec `storageState`) soumis aux mêmes contrôles que la fixture.
+ * Utile après `page.clock.install()`, qui fige les animations de tout le contexte.
+ */
+export async function openCheckedPage(
+  browser: Browser,
+  options: BrowserContextOptions,
+): Promise<{ page: Page; close: () => Promise<void> }> {
+  const context = await browser.newContext(options);
+  const page = await context.newPage();
+  const problems = await watchProblems(page);
+  return {
+    page,
+    close: async () => {
+      await context.close();
+      expect(problems, 'aucune erreur console ni violation CSP').toEqual([]);
+    },
+  };
+}
 
 export { expect };
 

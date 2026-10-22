@@ -1,6 +1,6 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { STORAGE_KEYS } from '../utils/constants';
+import { LEGACY_STORAGE_PREFIX, STORAGE_KEYS, STORAGE_PREFIX } from '../utils/constants';
 import { cloudConfig, loadSupabase } from './cloud';
 
 export interface AuthUser {
@@ -40,8 +40,12 @@ const toAuthUser = (user: User): AuthUser => ({ id: user.id, email: user.email ?
 /** Efface toutes les données FocusDeck de ce navigateur (cache local et file de synchronisation). */
 export function clearDeviceData(userId: string, storage: Storage = window.localStorage): void {
   for (const key of Object.values(STORAGE_KEYS)) storage.removeItem(key);
-  const prefix = `focusdeck:v1:sync:${userId}:`;
-  for (const key of Object.keys(storage)) if (key.startsWith(prefix)) storage.removeItem(key);
+  // Copies v1 conservées par la migration (L4) et file de cet utilisateur, toutes versions.
+  const legacyCollections = Object.keys(STORAGE_KEYS).map((name) => `${LEGACY_STORAGE_PREFIX}:${name}`);
+  const syncPrefixes = [STORAGE_PREFIX, LEGACY_STORAGE_PREFIX].map((prefix) => `${prefix}:sync:${userId}:`);
+  for (const key of Object.keys(storage)) {
+    if (legacyCollections.includes(key) || syncPrefixes.some((prefix) => key.startsWith(prefix))) storage.removeItem(key);
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

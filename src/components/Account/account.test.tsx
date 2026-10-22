@@ -78,6 +78,9 @@ describe('Comptes (EF-C02 à C06)', () => {
       STORAGE_KEYS.tasks,
       JSON.stringify([{ id: '20000000-0000-4000-8000-000000000001', title: 'Créée sans compte', completed: false, createdAt: 1, completedAt: null }]),
     );
+    // Copie v1 conservée par la migration (L4) : effacée elle aussi.
+    window.localStorage.setItem('focusdeck:v1:tasks', '[]');
+    window.localStorage.setItem('focusdeck:v1:sync:autre-utilisateur:outbox', '[]');
     auth.session = { user: USER };
     render(<App />);
 
@@ -101,6 +104,9 @@ describe('Comptes (EF-C02 à C06)', () => {
     });
     expect(fakeClient.auth.signOut).toHaveBeenCalled();
     expect(window.localStorage.getItem(STORAGE_KEYS.tasks)).toBeNull();
+    expect(window.localStorage.getItem('focusdeck:v1:tasks')).toBeNull();
+    // La file d'un autre compte de cet appareil n'est pas touchée.
+    expect(window.localStorage.getItem('focusdeck:v1:sync:autre-utilisateur:outbox')).toBe('[]');
     expect(await screen.findByRole('button', { name: /Se connecter/ })).toBeInTheDocument();
     await waitFor(() => expect(screen.queryAllByRole('checkbox')).toHaveLength(0));
     // Rien n'est supprimé du compte.

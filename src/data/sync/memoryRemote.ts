@@ -1,4 +1,4 @@
-import type { SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
+import type { Project, SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
 import type { OutboxEntry, RemotePull, RemoteStore } from './types';
 
 interface Versioned<T> {
@@ -11,13 +11,14 @@ export interface MemoryServer {
   clock: number;
   settings: Versioned<TimerSettings> | null;
   timer: Versioned<TimerSnapshot | null> | null;
+  projects: Map<string, Versioned<Project>>;
   tasks: Map<string, Versioned<{ task: Task; position: number; deleted: boolean }>>;
   sessions: Map<string, Versioned<{ date: string; session: SessionRecord; deleted: boolean }>>;
   listeners: Set<() => void>;
 }
 
 export function createMemoryServer(): MemoryServer {
-  return { clock: 0, settings: null, timer: null, tasks: new Map(), sessions: new Map(), listeners: new Set() };
+  return { clock: 0, settings: null, timer: null, projects: new Map(), tasks: new Map(), sessions: new Map(), listeners: new Set() };
 }
 
 export interface MemoryRemote extends RemoteStore {
@@ -41,9 +42,10 @@ export function createMemoryRemote(server: MemoryServer): MemoryRemote {
     async pull(cursor) {
       ensureReachable();
       const since = cursor === null ? -1 : Number(cursor);
-      const result: RemotePull = { tasks: [], sessions: [], cursor: String(server.clock) };
+      const result: RemotePull = { projects: [], tasks: [], sessions: [], cursor: String(server.clock) };
       if (server.settings && server.settings.version > since) result.settings = server.settings.value;
       if (server.timer && server.timer.version > since) result.timer = server.timer.value;
+      for (const { value, version } of server.projects.values()) if (version > since) result.projects.push(value);
       for (const { value, version } of server.tasks.values()) if (version > since) result.tasks.push(value);
       for (const { value, version } of server.sessions.values()) if (version > since) result.sessions.push(value);
       return structuredClone(result);
@@ -60,6 +62,9 @@ export function createMemoryRemote(server: MemoryServer): MemoryRemote {
             break;
           case 'timer':
             server.timer = { value: entry.snapshot, version };
+            break;
+          case 'project':
+            server.projects.set(entry.project.id, { value: entry.project, version });
             break;
           case 'task':
             server.tasks.set(entry.task.id, { value: { task: entry.task, position: entry.position, deleted: false }, version });

@@ -1,7 +1,7 @@
 import type { DayLog } from '../../types';
 import { deepEqual } from '../../utils/equal';
 import { appendSession, pruneLogs } from '../../utils/logs';
-import { sanitizeLogs, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../../utils/validation';
+import { sanitizeLogs, sanitizeProjects, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../../utils/validation';
 import type { AppData, CollectionKey } from '../repository';
 import { entryKey } from './outbox';
 import type { OutboxEntry, RemotePull } from './types';
@@ -22,7 +22,7 @@ export interface MergeResult {
 export function mergeRemote(local: AppData, pull: RemotePull, outbox: readonly OutboxEntry[], today: string): MergeResult {
   const pending = new Set(outbox.map(entryKey));
   const changed = new Set<CollectionKey>();
-  let { settings, tasks, logs, timer } = local;
+  let { settings, tasks, projects, logs, timer } = local;
 
   if (pull.settings !== undefined && !pending.has('settings')) {
     const next = sanitizeSettings(pull.settings);
@@ -37,6 +37,16 @@ export function mergeRemote(local: AppData, pull: RemotePull, outbox: readonly O
     if (!deepEqual(next, timer)) {
       timer = next;
       changed.add('timer');
+    }
+  }
+
+  if (pull.projects.length > 0) {
+    const byId = new Map(projects.map((project) => [project.id, project]));
+    for (const project of pull.projects) if (!pending.has(`project:${project.id}`)) byId.set(project.id, project);
+    const clean = sanitizeProjects([...byId.values()]);
+    if (!deepEqual(clean, projects)) {
+      projects = clean;
+      changed.add('projects');
     }
   }
 
@@ -79,7 +89,7 @@ export function mergeRemote(local: AppData, pull: RemotePull, outbox: readonly O
     }
   }
 
-  return { data: { settings, tasks, logs, timer }, changed: [...changed] };
+  return { data: { settings, tasks, projects, logs, timer }, changed: [...changed] };
 }
 
 /**
@@ -88,11 +98,15 @@ export function mergeRemote(local: AppData, pull: RemotePull, outbox: readonly O
  * reconnexion ne crée aucun doublon (upsert).
  */
 export function localOnlyEntries(local: AppData, remote: RemotePull): OutboxEntry[] {
+  const remoteProjects = new Set(remote.projects.map((project) => project.id));
   const remoteTasks = new Set(remote.tasks.map(({ task }) => task.id));
   const remoteSessions = new Set(remote.sessions.map(({ session }) => session.id));
   const entries: OutboxEntry[] = [];
   if (remote.settings === undefined) entries.push({ type: 'settings', settings: local.settings });
   if (remote.timer === undefined && local.timer !== null) entries.push({ type: 'timer', snapshot: local.timer });
+  for (const project of local.projects) {
+    if (!remoteProjects.has(project.id)) entries.push({ type: 'project', project });
+  }
   local.tasks.forEach((task, position) => {
     if (!remoteTasks.has(task.id)) entries.push({ type: 'task', task, position });
   });

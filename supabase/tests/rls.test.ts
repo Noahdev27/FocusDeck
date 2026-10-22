@@ -5,6 +5,7 @@ import { createTestDatabase, type TestDatabase } from './supabaseShim';
 const A = '00000000-0000-4000-8000-00000000000a';
 const B = '00000000-0000-4000-8000-00000000000b';
 const TASK_A = '10000000-0000-4000-8000-00000000000a';
+const PROJECT_A = '20000000-0000-4000-8000-00000000000a';
 
 let t: TestDatabase;
 
@@ -15,7 +16,8 @@ beforeAll(async () => {
   await t.as(A, (db) =>
     db.exec(`
       insert into public.settings (data) values ('{"focusMinutes": 50}');
-      insert into public.tasks (id, title) values ('${TASK_A}', 'Devis Acme');
+      insert into public.projects (id, name, client) values ('${PROJECT_A}', 'Site Acme', 'Acme');
+      insert into public.tasks (id, title, project_id, estimate, planned_for) values ('${TASK_A}', 'Devis Acme', '${PROJECT_A}', 3, current_date + 1);
       insert into public.sessions (id, mode, started_at, ended_at, duration_seconds, completed, day)
         values ('focus:1', 'focus', now() - interval '25 minutes', now(), 1500, true, current_date);
       insert into public.timer_states (snapshot) values ('{"mode": "focus"}');
@@ -33,7 +35,7 @@ describe('RLS (SEC-1, parcours critique 7)', () => {
   });
 
   it('chaque utilisateur ne voit que ses propres données', async () => {
-    for (const table of ['settings', 'tasks', 'sessions', 'timer_states', 'profiles']) {
+    for (const table of ['settings', 'projects', 'tasks', 'sessions', 'timer_states', 'profiles']) {
       expect(await count(A, table), `A lit ${table}`).toBe(1);
       expect(await count(B, table), `B ne lit pas ${table} de A`).toBe(table === 'profiles' ? 1 : 0);
       expect(await count(null, table), `anonyme lit ${table}`).toBe(0);
@@ -101,3 +103,50 @@ describe('Contraintes (SEC-4)', () => {
     expect(after && before && after.getTime() > before.getTime()).toBe(true);
   });
 });
+
+describe('Lot L4 : projets, estimations, report, tâche active', () => {
+  it('B ne voit ni ne modifie les projets de A', async () => {
+    const renamed = await t.as(B, async (db) => (await db.query(`update public.projects set name = 'pirate' where id = $1`, [PROJECT_A])).affectedRows);
+    expect(renamed).toBe(0);
+    await expect(
+      t.as(B, (db) => db.query(`insert into public.projects (id, user_id, name) values (gen_random_uuid(), $1, 'pirate')`, [A])),
+    ).rejects.toThrow(/row-level security/);
+  });
+
+  it('borne nom, couleur et estimation', async () => {
+    await expect(t.as(A, (db) => db.query(`insert into public.projects (id, name) values (gen_random_uuid(), '')`))).rejects.toThrow(/check/);
+    await expect(
+      t.as(A, (db) => db.query(`insert into public.projects (id, name, color) values (gen_random_uuid(), 'X', 'rouge')`)),
+    ).rejects.toThrow(/check/);
+    await expect(
+      t.as(A, (db) => db.query(`insert into public.tasks (id, title, estimate) values (gen_random_uuid(), 'X', 9)`)),
+    ).rejects.toThrow(/check/);
+  });
+
+  it('une référence orpheline (tâche ou projet jamais envoyé) ne bloque pas la synchronisation', async () => {
+    const orphan = '30000000-0000-4000-8000-000000000000';
+    await t.as(A, (db) =>
+      db.exec(`
+        insert into public.tasks (id, title, project_id) values (gen_random_uuid(), 'Projet inconnu', '${orphan}');
+        insert into public.sessions (id, task_id, mode, started_at, ended_at, duration_seconds, completed, day)
+          values ('focus:orphelin', '${orphan}', 'focus', now() - interval '25 minutes', now(), 1500, true, current_date);
+      `),
+    );
+    const taskId = await t.as(A, async (db) => (await db.query<{ task_id: string }>(`select task_id from public.sessions where id = 'focus:orphelin'`)).rows[0]?.task_id);
+    expect(taskId).toBe(orphan);
+  });
+
+  it('limite à 100 projets par utilisateur', async () => {
+    await t.as(B, (db) => db.exec(`insert into public.projects (id, name) select gen_random_uuid(), 'P' || g from generate_series(1, 100) g`));
+    await expect(t.as(B, (db) => db.query(`insert into public.projects (id, name) values (gen_random_uuid(), 'de trop')`))).rejects.toThrow(/100 projets/);
+    // La mise à jour d'un projet existant (upsert de la synchronisation) reste possible.
+    await expect(t.as(B, (db) => db.query(`update public.projects set archived_at = now() where name = 'P1'`))).resolves.toBeDefined();
+  });
+
+  it('horodate la création et la modification d’un projet', async () => {
+    const row = await t.as(A, async (db) => (await db.query<{ created_at: Date; updated_at: Date }>(`select created_at, updated_at from public.projects where id = $1`, [PROJECT_A])).rows[0]);
+    expect(row?.created_at).toBeInstanceOf(Date);
+    expect(row?.updated_at).toBeInstanceOf(Date);
+  });
+});
+

@@ -1,10 +1,13 @@
 import type { TimerMode, TimerSettings } from '../types';
 
-export const STORAGE_PREFIX = 'focusdeck:v1';
+/** Format v2 (lot L4) : projets, tâche active, estimations. Migration : `data/migrations.ts`. */
+export const STORAGE_PREFIX = 'focusdeck:v2';
+export const LEGACY_STORAGE_PREFIX = 'focusdeck:v1';
 
 export const STORAGE_KEYS = {
   settings: `${STORAGE_PREFIX}:settings`,
   tasks: `${STORAGE_PREFIX}:tasks`,
+  projects: `${STORAGE_PREFIX}:projects`,
   logs: `${STORAGE_PREFIX}:logs`,
   timer: `${STORAGE_PREFIX}:timer`,
 } as const;
@@ -20,6 +23,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   volume: 0.6,
   notificationsEnabled: false,
   analyticsEnabled: true,
+  autoPostpone: true,
 };
 
 /** Bornes de validation des réglages (inclusives). */
@@ -33,6 +37,31 @@ export const SETTINGS_LIMITS = {
 
 export const TASK_TITLE_MAX_LENGTH = 140;
 export const MAX_TASKS = 200;
+/** Estimation d'une tâche en pomodoros (EF-O02). */
+export const ESTIMATE_LIMITS = { min: 1, max: 8 } as const;
+
+export const PROJECT_NAME_MAX_LENGTH = 60;
+export const PROJECT_CLIENT_MAX_LENGTH = 80;
+export const MAX_PROJECTS = 100;
+
+/**
+ * Palette des projets : teintes 300/400 de Tailwind, toutes au-dessus de 7:1 de contraste
+ * sur le fond sombre, distinguées aussi par leur nom (jamais par la seule couleur).
+ */
+export const PROJECT_COLORS = [
+  { value: '#fb7185', label: 'Rose' },
+  { value: '#fb923c', label: 'Orange' },
+  { value: '#fbbf24', label: 'Ambre' },
+  { value: '#a3e635', label: 'Citron vert' },
+  { value: '#34d399', label: 'Émeraude' },
+  { value: '#22d3ee', label: 'Cyan' },
+  { value: '#60a5fa', label: 'Bleu' },
+  { value: '#a78bfa', label: 'Violet' },
+  { value: '#f0abfc', label: 'Fuchsia' },
+  { value: '#d4d4d8', label: 'Gris' },
+] as const;
+
+export const DEFAULT_PROJECT_COLOR = PROJECT_COLORS[7].value;
 /** Nombre de jours d'historique conservés dans le stockage local. */
 export const LOG_RETENTION_DAYS = 30;
 
