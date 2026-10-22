@@ -12,7 +12,9 @@ concurrency:
 jobs:
   qualite:
     name: Typecheck, lint, tests, build, budget
-    runs-on: ubuntu-latest
+    # Image fixée : Playwright 1.56.1 (épinglé, cf. CLAUDE.md) ne sait pas installer Chromium
+    # sur ubuntu-latest, passé en 26.04. À relever en même temps que Playwright.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -35,7 +37,9 @@ jobs:
 
   e2e:
     name: Parcours e2e (Playwright + axe)
-    runs-on: ubuntu-latest
+    # Image fixée : Playwright 1.56.1 (épinglé, cf. CLAUDE.md) ne sait pas installer Chromium
+    # sur ubuntu-latest, passé en 26.04. À relever en même temps que Playwright.
+    runs-on: ubuntu-24.04
     needs: qualite
     steps:
       - uses: actions/checkout@v4
@@ -64,7 +68,9 @@ jobs:
 
   lighthouse:
     name: Lighthouse (PERF-2)
-    runs-on: ubuntu-latest
+    # Image fixée : Playwright 1.56.1 (épinglé, cf. CLAUDE.md) ne sait pas installer Chromium
+    # sur ubuntu-latest, passé en 26.04. À relever en même temps que Playwright.
+    runs-on: ubuntu-24.04
     needs: qualite
     steps:
       - uses: actions/checkout@v4

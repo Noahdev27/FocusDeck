@@ -35,7 +35,8 @@ violation CSP ou violation axe sérieuse/critique (WCAG 2.2 AA).
 `@playwright/test` et `playwright-core` sont **épinglés en 1.56.1** pour correspondre au
 Chromium préinstallé de l'environnement cloud (`/opt/pw-browsers/chromium-1194`). Ne pas les
 mettre à jour sans mettre à jour ce navigateur ; ne jamais lancer `playwright install` en local
-cloud (la CI, elle, l'installe).
+cloud (la CI, elle, l'installe, sur `ubuntu-24.04` : cette version de Playwright ne prend
+pas en charge `ubuntu-latest` en 26.04).
 Pour toute modification visible, lancer l'app (`npm run build && npx vite preview`) et la
 vérifier dans Chromium via Playwright (`/opt/node-tools/node_modules/playwright` dans
 l'environnement cloud), en desktop 1360px et mobile 390px, sans erreur console et sans
