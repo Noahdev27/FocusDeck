@@ -1,8 +1,25 @@
-import type { DailyReport, DayLog, Project, ProjectReportGroup, Task } from '../types';
+import { focusByProject, totalsOf } from '../domain/stats';
+import type { DayLog, Project, ProjectReportGroup, Report, ReportSession, SessionRecord, Task } from '../types';
 import { formatDuration, formatLongDate, formatShortDate, formatTime, pluralize, toDateKey } from './format';
-import { indexProjects } from './tasks';
+import { indexProjects, matchesFilters, type ProjectFilter } from './tasks';
 
 export const NO_PROJECT_LABEL = 'Sans projet';
+
+export interface ReportRange {
+  from: string;
+  to: string;
+}
+
+export interface ReportFilters {
+  /** `all`, `none` (sans projet) ou l'identifiant d'un projet. */
+  projectId: ProjectFilter;
+}
+
+export interface ReportData {
+  logs: Record<string, DayLog>;
+  tasks: readonly Task[];
+  projects: readonly Project[];
+}
 
 /**
  * Regroupe tâches et temps de focus par projet (lot L4). Le temps d'une session est
@@ -10,7 +27,7 @@ export const NO_PROJECT_LABEL = 'Sans projet';
  * compte pour « Sans projet ». Retourne `[]` quand aucun projet n'est concerné.
  */
 export function groupByProject(
-  log: DayLog,
+  sessions: readonly SessionRecord[],
   tasks: readonly Task[],
   completedTasks: readonly Task[],
   pendingTasks: readonly Task[],
@@ -20,13 +37,8 @@ export function groupByProject(
   const byId = indexProjects(projects);
   const taskProject = new Map(tasks.map((task) => [task.id, task.projectId !== null && byId.has(task.projectId) ? task.projectId : null]));
   const keyOf = (task: Task) => taskProject.get(task.id) ?? null;
-
-  const focus = new Map<string | null, number>();
-  for (const session of log.sessions) {
-    if (session.mode !== 'focus') continue;
-    const key = session.taskId === null ? null : (taskProject.get(session.taskId) ?? null);
-    focus.set(key, (focus.get(key) ?? 0) + session.durationSeconds);
-  }
+  // Même calcul que la page Statistiques : les totaux concordent par construction.
+  const focus = new Map(focusByProject(sessions, tasks, projects).map((share) => [share.projectId, share.focusSeconds]));
 
   const groups: ProjectReportGroup[] = [];
   for (const key of [...projects.map((project) => project.id), null]) {
@@ -45,50 +57,92 @@ export function groupByProject(
   return groups.some((group) => group.projectId !== null) ? groups : [];
 }
 
-/** Construit le rapport d'une journée à partir du journal de sessions et des tâches. */
-export function buildDailyReport(
-  log: DayLog,
-  tasks: readonly Task[],
-  now: number = Date.now(),
-  projects: readonly Project[] = [],
-): DailyReport {
-  let completedCycles = 0;
-  let focusSeconds = 0;
-  let breakSeconds = 0;
-  let interruptedSessions = 0;
+/**
+ * Rapport d'une période (EF-R02), filtrable par projet. Les sessions sont rattachées à un
+ * projet par leur tâche ; les tâches « à reprendre » ne figurent que si la période atteint
+ * aujourd'hui (pour une période passée, elles n'ont pas de sens).
+ */
+export function buildReport(range: ReportRange, filters: ReportFilters, data: ReportData, now: number = Date.now()): Report {
+  const { logs, tasks, projects } = data;
+  const byId = indexProjects(projects);
+  const taskById = new Map(tasks.map((task) => [task.id, task]));
+  const projectOf = (taskId: string | null): string | null => {
+    const projectId = taskId === null ? null : (taskById.get(taskId)?.projectId ?? null);
+    return projectId !== null && byId.has(projectId) ? projectId : null;
+  };
+  const sessionMatches = (session: SessionRecord) => {
+    if (filters.projectId === 'all') return true;
+    const projectId = projectOf(session.taskId);
+    return filters.projectId === 'none' ? projectId === null : projectId === filters.projectId;
+  };
+  const taskMatches = (task: Task) => {
+    const known = { ...task, projectId: task.projectId !== null && byId.has(task.projectId) ? task.projectId : null };
+    return matchesFilters(known, 'all', filters.projectId);
+  };
 
-  for (const session of log.sessions) {
-    if (session.mode === 'focus') {
-      focusSeconds += session.durationSeconds;
-      if (session.completed) completedCycles += 1;
-    } else {
-      breakSeconds += session.durationSeconds;
-    }
-    if (!session.completed) interruptedSessions += 1;
-  }
+  const sessions: ReportSession[] = Object.values(logs)
+    .filter((log) => log.date >= range.from && log.date <= range.to)
+    .flatMap((log) => log.sessions.filter(sessionMatches).map((session) => ({ date: log.date, session })))
+    .sort((a, b) => a.session.startedAt - b.session.startedAt)
+    .map(({ date, session }) => {
+      const projectId = projectOf(session.taskId);
+      return {
+        date,
+        session,
+        taskTitle: session.taskId === null ? null : (taskById.get(session.taskId)?.title ?? null),
+        projectName: projectId === null ? null : (byId.get(projectId)?.name ?? null),
+      };
+    });
 
-  const completedTasks = tasks
-    .filter((task) => task.completed && task.completedAt !== null && toDateKey(task.completedAt) === log.date)
+  const records = sessions.map(({ session }) => session);
+  const totals = totalsOf(range.from, records);
+  const interruptedSessions = records.filter((session) => !session.completed).length;
+
+  const scoped = tasks.filter(taskMatches);
+  const completedTasks = scoped
+    .filter((task) => {
+      if (!task.completed || task.completedAt === null) return false;
+      const day = toDateKey(task.completedAt);
+      return day >= range.from && day <= range.to;
+    })
     .sort((a, b) => (a.completedAt ?? 0) - (b.completedAt ?? 0));
-  // Une tâche reportée à un jour ultérieur n'est ni « à reprendre » ni un échec du jour.
-  const postponed = (task: Task) => task.plannedFor !== null && task.plannedFor > log.date;
-  const pendingTasks = tasks.filter((task) => !task.completed && !postponed(task));
-  const postponedTasks = tasks.filter((task) => !task.completed && postponed(task));
+  // Une tâche reportée au-delà de la période n'est ni « à reprendre » ni un échec de la période.
+  const postponed = (task: Task) => task.plannedFor !== null && task.plannedFor > range.to;
+  const reachesToday = range.to >= toDateKey(now);
+  const pendingTasks = reachesToday ? scoped.filter((task) => !task.completed && !postponed(task)) : [];
+  const postponedTasks = reachesToday ? scoped.filter((task) => !task.completed && postponed(task)) : [];
   const total = completedTasks.length + pendingTasks.length;
 
+  const scope =
+    filters.projectId === 'all' ? null : filters.projectId === 'none' ? NO_PROJECT_LABEL : (byId.get(filters.projectId)?.name ?? NO_PROJECT_LABEL);
+
   return {
-    date: log.date,
+    from: range.from,
+    to: range.to,
+    scope,
     generatedAt: now,
-    completedCycles,
-    focusSeconds,
-    breakSeconds,
+    completedCycles: totals.cycles,
+    focusSeconds: totals.focusSeconds,
+    breakSeconds: totals.breakSeconds,
     interruptedSessions,
     completedTasks,
     pendingTasks,
     completionRate: total === 0 ? 0 : completedTasks.length / total,
     postponedTasks,
-    projectGroups: groupByProject(log, tasks, completedTasks, pendingTasks, projects),
+    projectGroups: groupByProject(records, tasks, completedTasks, pendingTasks, projects),
+    sessions,
   };
+}
+
+/** Rapport d'une journée : cas particulier de `buildReport` (tous les projets). */
+export function buildDailyReport(log: DayLog, tasks: readonly Task[], now: number = Date.now(), projects: readonly Project[] = []): Report {
+  return buildReport({ from: log.date, to: log.date }, { projectId: 'all' }, { logs: { [log.date]: log }, tasks, projects }, now);
+}
+
+/** Période lisible : « vendredi 16 octobre 2026 » ou « du lun. 12 oct. au dim. 18 oct. 2026 ». */
+export function reportPeriodLabel(report: Pick<Report, 'from' | 'to'>): string {
+  if (report.from === report.to) return formatLongDate(report.from);
+  return `du ${formatLongDate(report.from)} au ${formatLongDate(report.to)}`;
 }
 
 /** Nom affiché d'un groupe : « Projet (client) ». */
@@ -101,12 +155,20 @@ export function escapeMarkdown(text: string): string {
   return text.replace(/([\\`*_[\]<>#|])/g, '\\$1');
 }
 
-export function reportToMarkdown(report: DailyReport): string {
+/** La période atteint le jour de génération : les tâches en cours ont un sens. */
+const reachesGenerationDay = (report: Pick<Report, 'to' | 'generatedAt'>) => report.to >= toDateKey(report.generatedAt);
+const isSingleDay = (report: Pick<Report, 'from' | 'to'>) => report.from === report.to;
+
+export function reportToMarkdown(report: Report): string {
+  const generatedToday = isSingleDay(report) && report.from === toDateKey(report.generatedAt);
   const lines: string[] = [
-    `# Rapport FocusDeck — ${formatLongDate(report.date)}`,
+    `# Rapport FocusDeck — ${reportPeriodLabel(report)}`,
     '',
-    `_Généré à ${formatTime(report.generatedAt)}_`,
+    generatedToday
+      ? `_Généré à ${formatTime(report.generatedAt)}_`
+      : `_Généré le ${formatShortDate(toDateKey(report.generatedAt))} à ${formatTime(report.generatedAt)}_`,
     '',
+    ...(report.scope === null ? [] : [`_Projet : ${escapeMarkdown(report.scope)}_`, '']),
     '## Résumé',
     '',
     '| Indicateur | Valeur |',
@@ -129,8 +191,12 @@ export function reportToMarkdown(report: DailyReport): string {
     lines.push('');
   }
 
-  const doneLine = (task: Task) =>
-    `- [x] ${escapeMarkdown(task.title)}${task.completedAt === null ? '' : ` — ${formatTime(task.completedAt)}`}`;
+  // Sur plusieurs jours, l'heure seule ne suffit pas : date courte + heure.
+  const doneLine = (task: Task) => {
+    if (task.completedAt === null) return `- [x] ${escapeMarkdown(task.title)}`;
+    const at = isSingleDay(report) ? formatTime(task.completedAt) : `${formatShortDate(toDateKey(task.completedAt))} ${formatTime(task.completedAt)}`;
+    return `- [x] ${escapeMarkdown(task.title)} — ${at}`;
+  };
   const pendingLine = (task: Task) => `- [ ] ${escapeMarkdown(task.title)}`;
 
   /** Liste plate, ou sous-titres par projet quand le rapport est groupé. */
@@ -154,10 +220,17 @@ export function reportToMarkdown(report: DailyReport): string {
   };
 
   lines.push(`## Tâches complétées (${report.completedTasks.length})`, '');
-  taskList((group) => group.completedTasks, report.completedTasks, doneLine, '_Aucune tâche complétée aujourd’hui._');
+  taskList(
+    (group) => group.completedTasks,
+    report.completedTasks,
+    doneLine,
+    isSingleDay(report) ? '_Aucune tâche complétée aujourd’hui._' : '_Aucune tâche complétée sur la période._',
+  );
 
-  lines.push('', `## À reprendre (${report.pendingTasks.length})`, '');
-  taskList((group) => group.pendingTasks, report.pendingTasks, pendingLine, '_Rien en attente. Belle journée !_');
+  if (reachesGenerationDay(report)) {
+    lines.push('', `## À reprendre (${report.pendingTasks.length})`, '');
+    taskList((group) => group.pendingTasks, report.pendingTasks, pendingLine, '_Rien en attente. Belle journée !_');
+  }
 
   if (report.postponedTasks.length > 0) {
     lines.push('', `## Reportées (${report.postponedTasks.length})`, '');
@@ -171,15 +244,52 @@ export function reportToMarkdown(report: DailyReport): string {
 }
 
 /** Phrase de synthèse courte, utilisée en conclusion du rapport. */
-export function buildHeadline(report: DailyReport): string {
+export function buildHeadline(report: Report): string {
   if (report.completedCycles === 0 && report.completedTasks.length === 0) {
-    return 'Pas encore de session aujourd’hui — lancez un premier cycle Focus pour démarrer.';
+    return reachesGenerationDay(report) && isSingleDay(report)
+      ? 'Pas encore de session aujourd’hui — lancez un premier cycle Focus pour démarrer.'
+      : 'Aucun cycle ni tâche terminés sur cette période.';
   }
   return `${pluralize(report.completedCycles, 'cycle')} de focus, ${formatDuration(
     report.focusSeconds,
   )} de concentration et ${pluralize(report.completedTasks.length, 'tâche complétée', 'tâches complétées')}.`;
 }
 
-export function reportFilename(report: DailyReport, extension: 'md' | 'pdf'): string {
-  return `focusdeck-rapport-${report.date}.${extension}`;
+export function reportFilename(report: Pick<Report, 'from' | 'to'>, extension: 'md' | 'pdf' | 'csv'): string {
+  const period = isSingleDay(report) ? report.from : `${report.from}_${report.to}`;
+  return `focusdeck-rapport-${period}.${extension}`;
+}
+
+/** Afficher la section « À reprendre » (période qui atteint le jour de génération). */
+export const showsPendingTasks = reachesGenerationDay;
+
+const CSV_SEPARATOR = ';';
+const CSV_HEADER = ['Date', 'Début', 'Fin', 'Mode', 'Durée (min)', 'Tâche', 'Projet'];
+const MODE_LABELS: Record<SessionRecord['mode'], string> = { focus: 'Focus', shortBreak: 'Pause courte', longBreak: 'Pause longue' };
+
+/**
+ * Cellule CSV : guillemets si nécessaire, et neutralisation des formules (une valeur saisie
+ * par l'utilisateur commençant par `=`, `+`, `-`, `@` serait exécutée par le tableur).
+ */
+export function csvCell(value: string): string {
+  const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[";\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
+}
+
+/**
+ * Export CSV des sessions (EF-R04) pour Excel en français : séparateur `;`, BOM UTF-8,
+ * fins de ligne CRLF, durée en minutes avec virgule décimale.
+ */
+export function reportToCsv(report: Pick<Report, 'sessions'>): string {
+  const rows = report.sessions.map(({ date, session, taskTitle, projectName }) => [
+    date,
+    formatTime(session.startedAt),
+    formatTime(session.endedAt),
+    MODE_LABELS[session.mode],
+    (Math.round((session.durationSeconds / 60) * 10) / 10).toString().replace('.', ','),
+    taskTitle ?? '',
+    projectName ?? '',
+  ]);
+  const lines = [CSV_HEADER, ...rows].map((row) => row.map(csvCell).join(CSV_SEPARATOR));
+  return `\uFEFF${lines.join('\r\n')}\r\n`;
 }

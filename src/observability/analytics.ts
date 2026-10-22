@@ -3,7 +3,7 @@ import { deploymentEnvironment } from './env';
 /** Événements produit mesurés (aucune donnée personnelle dans les propriétés). */
 export type AnalyticsEvent =
   | { name: 'cycle_completed'; properties: { mode: 'focus' | 'shortBreak' | 'longBreak' } }
-  | { name: 'report_exported'; properties: { format: 'markdown' | 'pdf' } }
+  | { name: 'report_exported'; properties: { format: 'markdown' | 'pdf' | 'csv' } }
   | { name: 'signed_up'; properties: Record<string, never> }
   | { name: 'upgraded_to_pro'; properties: { period: 'monthly' | 'yearly' } };
 

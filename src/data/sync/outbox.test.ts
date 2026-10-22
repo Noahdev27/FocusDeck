@@ -36,11 +36,13 @@ describe('outbox', () => {
     expect(diffTasks(before, before)).toEqual([]);
   });
 
-  it('ne propage pas l’élagage de l’historique local vers le serveur', () => {
-    const old = { '2026-08-01': { date: '2026-08-01', sessions: [session('vieux')] } };
+  it('ne propage pas l’élagage de l’historique local (âge ou taille) vers le serveur', () => {
+    const old = { '2025-08-01': { date: '2025-08-01', sessions: [session('vieux')] } };
+    const recent = { '2026-10-10': { date: '2026-10-10', sessions: [session('récent')] } };
     const today = { '2026-10-16': { date: '2026-10-16', sessions: [session('jour')] } };
-    expect(diffLogs({ ...old, ...today }, today, '2026-10-16', 30)).toEqual([]);
-    expect(diffLogs(today, {}, '2026-10-16', 30)).toEqual([{ type: 'session-delete', id: 'jour' }]);
+    expect(diffLogs({ ...old, ...recent, ...today }, today, '2026-10-16')).toEqual([]);
+    // « Effacer l'historique du jour » : seule suppression propagée.
+    expect(diffLogs({ ...recent, ...today }, recent, '2026-10-16')).toEqual([{ type: 'session-delete', id: 'jour' }]);
   });
 
   it('relit une file persistée en écartant les entrées invalides', () => {

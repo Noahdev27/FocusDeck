@@ -1,6 +1,6 @@
-import type { DailyReport, ProjectReportGroup, Task } from '../types';
-import { formatDuration, formatLongDate, formatShortDate, formatTime } from './format';
-import { buildHeadline, groupLabel, reportFilename } from './report';
+import type { ProjectReportGroup, Report, Task } from '../types';
+import { formatDuration, formatShortDate, formatTime, toDateKey } from './format';
+import { buildHeadline, groupLabel, reportFilename, reportPeriodLabel, showsPendingTasks } from './report';
 
 const COLORS = {
   ink: [24, 24, 37],
@@ -15,13 +15,13 @@ const COLORS = {
  * Génère le rapport au format PDF et le télécharge. jsPDF est chargé à la
  * demande pour ne pas alourdir le bundle initial.
  */
-export async function exportReportPdf(report: DailyReport): Promise<void> {
+export async function exportReportPdf(report: Report): Promise<void> {
   const doc = await buildReportPdf(report);
   doc.save(reportFilename(report, 'pdf'));
 }
 
 /** Construit le document PDF du rapport sans l'enregistrer (testable). */
-export async function buildReportPdf(report: DailyReport): Promise<import('jspdf').jsPDF> {
+export async function buildReportPdf(report: Report): Promise<import('jspdf').jsPDF> {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -52,8 +52,10 @@ export async function buildReportPdf(report: DailyReport): Promise<import('jspdf
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   doc.setTextColor(...COLORS.muted);
-  doc.text(`${capitalize(formatLongDate(report.date))} · généré à ${formatTime(report.generatedAt)}`, margin, y);
-  y += 12;
+  const period = capitalize(reportPeriodLabel(report));
+  const header = report.scope === null ? period : `${period} · projet ${report.scope}`;
+  doc.text(doc.splitTextToSize(`${header} · généré à ${formatTime(report.generatedAt)}`, contentWidth) as string[], margin, y);
+  y += report.from === report.to ? 12 : 17;
 
   // Cartes de statistiques.
   const stats: [string, string][] = [
@@ -149,7 +151,11 @@ export async function buildReportPdf(report: DailyReport): Promise<import('jspdf
     y += 6;
   }
 
-  const completedLabel = (task: Task) => (task.completedAt === null ? task.title : `${task.title}  —  ${formatTime(task.completedAt)}`);
+  const completedLabel = (task: Task) => {
+    if (task.completedAt === null) return task.title;
+    const at = report.from === report.to ? formatTime(task.completedAt) : `${formatShortDate(toDateKey(task.completedAt))} ${formatTime(task.completedAt)}`;
+    return `${task.title}  —  ${at}`;
+  };
   /** Liste plate, ou sous-titres par projet quand le rapport est groupé. */
   const groupedList = (all: Task[], pick: (group: ProjectReportGroup) => Task[], label: (task: Task) => string, done: boolean, empty: string) => {
     if (groups.length === 0 || all.length === 0) {
@@ -174,10 +180,18 @@ export async function buildReportPdf(report: DailyReport): Promise<import('jspdf
   };
 
   section(`Tâches complétées (${report.completedTasks.length})`);
-  groupedList(report.completedTasks, (group) => group.completedTasks, completedLabel, true, 'Aucune tâche complétée aujourd’hui.');
+  groupedList(
+    report.completedTasks,
+    (group) => group.completedTasks,
+    completedLabel,
+    true,
+    report.from === report.to ? 'Aucune tâche complétée aujourd’hui.' : 'Aucune tâche complétée sur la période.',
+  );
 
-  section(`À reprendre (${report.pendingTasks.length})`);
-  groupedList(report.pendingTasks, (group) => group.pendingTasks, (task) => task.title, false, 'Rien en attente. Belle journée !');
+  if (showsPendingTasks(report)) {
+    section(`À reprendre (${report.pendingTasks.length})`);
+    groupedList(report.pendingTasks, (group) => group.pendingTasks, (task) => task.title, false, 'Rien en attente. Belle journée !');
+  }
 
   if (report.postponedTasks.length > 0) {
     section(`Reportées (${report.postponedTasks.length})`);

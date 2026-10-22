@@ -24,6 +24,7 @@ export const DEFAULT_SETTINGS: TimerSettings = {
   notificationsEnabled: false,
   analyticsEnabled: true,
   autoPostpone: true,
+  dailyGoal: 8,
 };
 
 /** Bornes de validation des réglages (inclusives). */
@@ -33,6 +34,7 @@ export const SETTINGS_LIMITS = {
   longBreakMinutes: { min: 1, max: 90 },
   longBreakInterval: { min: 2, max: 12 },
   volume: { min: 0, max: 1 },
+  dailyGoal: { min: 1, max: 24 },
 } as const;
 
 export const TASK_TITLE_MAX_LENGTH = 140;
@@ -62,8 +64,13 @@ export const PROJECT_COLORS = [
 ] as const;
 
 export const DEFAULT_PROJECT_COLOR = PROJECT_COLORS[7].value;
-/** Nombre de jours d'historique conservés dans le stockage local. */
-export const LOG_RETENTION_DAYS = 30;
+/** Nombre de jours d'historique conservés dans le stockage local (lot L3 : 30 → 365). */
+export const LOG_RETENTION_DAYS = 365;
+/**
+ * Plafond de taille du journal local (caractères JSON, ≈ octets) : au-delà, les jours les plus
+ * anciens sont purgés pour laisser de la place au reste du stockage (quota ≈ 5 Mo).
+ */
+export const LOG_MAX_SIZE = 2_000_000;
 
 export interface ModeMeta {
   label: string;

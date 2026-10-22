@@ -22,6 +22,8 @@ export interface TimerSettings {
    * du jour (EF-O05). Désactivé : il reste marqué « en retard ».
    */
   autoPostpone: boolean;
+  /** Objectif quotidien de cycles Focus (EF-T07). */
+  dailyGoal: number;
 }
 
 /** État sérialisable du minuteur (persisté pour survivre à un rechargement). */
@@ -97,8 +99,20 @@ export interface ProjectReportGroup {
   pendingTasks: Task[];
 }
 
-export interface DailyReport {
+/** Session d'un rapport, avec sa tâche et son projet résolus (export CSV, EF-R04). */
+export interface ReportSession {
   date: string;
+  session: SessionRecord;
+  taskTitle: string | null;
+  projectName: string | null;
+}
+
+/** Rapport d'une période (lot L3, EF-R02) ; le rapport du jour est le cas `from === to`. */
+export interface Report {
+  from: string;
+  to: string;
+  /** Nom du projet filtré (« Sans projet » compris) ; `null` = tous les projets. */
+  scope: string | null;
   generatedAt: number;
   completedCycles: number;
   focusSeconds: number;
@@ -112,6 +126,11 @@ export interface DailyReport {
   postponedTasks: Task[];
   /** Regroupement par projet ; vide quand aucun projet n'est concerné. */
   projectGroups: ProjectReportGroup[];
+  /** Sessions de la période (après filtre), dans l'ordre chronologique. */
+  sessions: ReportSession[];
 }
+
+/** Rapport d'une journée (historique : `buildDailyReport`). */
+export type DailyReport = Report;
 
 export type ReportFormat = 'markdown' | 'pdf';

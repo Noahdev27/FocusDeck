@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DayLog, Project, Task } from '../types';
-import { buildDailyReport, escapeMarkdown, groupLabel, reportFilename, reportToMarkdown } from './report';
+import { buildDailyReport, buildReport, csvCell, escapeMarkdown, groupLabel, reportFilename, reportToCsv, reportToMarkdown } from './report';
 
 const day = new Date(2026, 9, 16, 9, 0).getTime();
 const at = (hours: number, minutes = 0) => day + (hours - 9) * 3_600_000 + minutes * 60_000;
@@ -119,5 +119,80 @@ describe('rapport groupé par projet (lot L4)', () => {
     expect(markdown).toMatch(/## À reprendre \(4\)\n\n### Site Acme\n\n- \[ \] Intégration\n\n### Blog\n\n- \[ \] Article/);
     expect(markdown).toMatch(/## Reportées \(1\)\n\n- \[ \] Plus tard — prévue sam\. 17 oct\./);
     expect(groupLabel({ name: 'A', client: null })).toBe('A');
+  });
+});
+
+describe('rapport de période (lot L3, EF-R02, EF-R04)', () => {
+  const projects: Project[] = [{ id: 'p1', name: 'Site Acme', color: '#34d399', client: 'Acme', createdAt: 1, archivedAt: null }];
+  const base = { completed: false, createdAt: at(9), completedAt: null, estimate: null, plannedFor: null };
+  const periodTasks: Task[] = [
+    { ...base, id: 't1', title: 'Maquette', projectId: 'p1', completed: true, completedAt: at(10) - 86_400_000 },
+    { ...base, id: 't2', title: '=SOMME(A1:A9); "test"', projectId: null },
+  ];
+  const logs: Record<string, DayLog> = {
+    '2026-10-15': {
+      date: '2026-10-15',
+      sessions: [{ id: 'x', mode: 'focus', startedAt: at(9) - 86_400_000, endedAt: at(9, 25) - 86_400_000, durationSeconds: 1500, completed: true, taskId: 't1' }],
+    },
+    '2026-10-16': {
+      date: '2026-10-16',
+      sessions: [
+        { id: 'y', mode: 'focus', startedAt: at(11), endedAt: at(11, 12), durationSeconds: 750, completed: false, taskId: 't2' },
+        { id: 'z', mode: 'shortBreak', startedAt: at(11, 12), endedAt: at(11, 17), durationSeconds: 300, completed: true, taskId: null },
+      ],
+    },
+    '2026-10-01': { date: '2026-10-01', sessions: [{ id: 'hors', mode: 'focus', startedAt: 1, endedAt: 2, durationSeconds: 1500, completed: true, taskId: null }] },
+  };
+  const data = { logs, tasks: periodTasks, projects };
+  const week = buildReport({ from: '2026-10-12', to: '2026-10-16' }, { projectId: 'all' }, data, at(18));
+
+  it('agrège la période et liste ses sessions dans l’ordre', () => {
+    expect(week).toMatchObject({ from: '2026-10-12', to: '2026-10-16', scope: null, focusSeconds: 2250, completedCycles: 1, breakSeconds: 300 });
+    expect(week.sessions.map((s) => [s.session.id, s.taskTitle, s.projectName])).toEqual([
+      ['x', 'Maquette', 'Site Acme'],
+      ['y', '=SOMME(A1:A9); "test"', null],
+      ['z', null, null],
+    ]);
+    expect(week.completedTasks.map((t) => t.id)).toEqual(['t1']);
+  });
+
+  it('filtre par projet (et « sans projet »)', () => {
+    const acme = buildReport({ from: '2026-10-12', to: '2026-10-16' }, { projectId: 'p1' }, data, at(18));
+    expect(acme).toMatchObject({ scope: 'Site Acme', focusSeconds: 1500, completedCycles: 1 });
+    expect(acme.pendingTasks).toEqual([]);
+    const none = buildReport({ from: '2026-10-12', to: '2026-10-16' }, { projectId: 'none' }, data, at(18));
+    expect(none).toMatchObject({ scope: 'Sans projet', focusSeconds: 750, breakSeconds: 300 });
+    expect(none.pendingTasks.map((t) => t.id)).toEqual(['t2']);
+  });
+
+  it('une période passée ne liste pas de tâches « à reprendre »', () => {
+    const past = buildReport({ from: '2026-10-01', to: '2026-10-07' }, { projectId: 'all' }, data, at(18));
+    expect(past).toMatchObject({ focusSeconds: 1500, pendingTasks: [], postponedTasks: [] });
+    const markdown = reportToMarkdown(past);
+    expect(markdown).toMatch(/^# Rapport FocusDeck — du jeudi 1 octobre 2026 au mercredi 7 octobre 2026/);
+    expect(markdown).not.toContain('À reprendre');
+    expect(markdown).toContain('_Aucune tâche complétée sur la période._');
+    expect(reportFilename(past, 'csv')).toBe('focusdeck-rapport-2026-10-01_2026-10-07.csv');
+  });
+
+  it('Markdown de période : projet filtré, dates des tâches', () => {
+    const markdown = reportToMarkdown(buildReport({ from: '2026-10-12', to: '2026-10-16' }, { projectId: 'p1' }, data, at(18)));
+    expect(markdown).toContain('_Projet : Site Acme_');
+    expect(markdown).toMatch(/- \[x\] Maquette — jeu\. 15 oct\. 10:00/);
+    expect(markdown).toContain('_Généré le ven. 16 oct. à 18:00_');
+  });
+
+  it('CSV pour Excel FR : BOM, « ; », CRLF, minutes à virgule, formules neutralisées', () => {
+    const csv = reportToCsv(week);
+    expect(csv.startsWith('﻿')).toBe(true);
+    const lines = csv.slice(1).split('\r\n');
+    expect(lines[0]).toBe('Date;Début;Fin;Mode;Durée (min);Tâche;Projet');
+    expect(lines[1]).toBe('2026-10-15;09:00;09:25;Focus;25;Maquette;Site Acme');
+    expect(lines[2]).toBe('2026-10-16;11:00;11:12;Focus;12,5;"\'=SOMME(A1:A9); ""test""";');
+    expect(lines[3]).toBe('2026-10-16;11:12;11:17;Pause courte;5;;');
+    expect(lines[4]).toBe('');
+    expect(csvCell('+33 6 12')).toBe("'+33 6 12");
+    expect(csvCell('ligne\nsuivante')).toBe('"ligne\nsuivante"');
+    expect(reportToCsv({ sessions: [] })).toBe('﻿Date;Début;Fin;Mode;Durée (min);Tâche;Projet\r\n');
   });
 });

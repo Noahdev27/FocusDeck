@@ -46,6 +46,7 @@ export default defineConfig({
         functions: 65,
         branches: 60,
         'src/utils/**': { statements: 90, lines: 90, functions: 90, branches: 80 },
+        'src/domain/**': { statements: 90, lines: 90, functions: 90, branches: 80 },
       },
     },
   },

@@ -46,6 +46,8 @@ export interface FocusContextValue {
   setProjectArchived: (id: string, archived: boolean) => void;
 
   todayLog: DayLog;
+  /** Journal complet (365 jours au plus en local) : statistiques et rapports de période. */
+  logs: Record<string, DayLog>;
   /** `id` facultatif : fourni par le minuteur pour dédoublonner entre appareils. */
   recordSession: (session: Omit<SessionRecord, 'id'> & { id?: string }) => void;
   clearTodayLog: () => void;
@@ -211,6 +213,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       updateProject,
       setProjectArchived,
       todayLog,
+      logs,
       recordSession,
       clearTodayLog,
     }),
@@ -236,6 +239,7 @@ export function FocusProvider({ children }: { children: ReactNode }) {
       updateProject,
       setProjectArchived,
       todayLog,
+      logs,
       recordSession,
       clearTodayLog,
     ],

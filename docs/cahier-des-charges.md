@@ -54,11 +54,11 @@ Kanban, pas de Gantt).
 | Comptes (L2 ✅*) | Schéma Postgres + RLS testés sur un vrai Postgres (PGlite), synchronisation hors ligne d'abord (file persistée, curseur, fusion, dédoublonnage multi-appareils), connexion lien magique / Google, déconnexion avec choix. **En attente d'un projet Supabase** (`docs/supabase.md`) : sans configuration, l'app reste en mode local |
 | Hébergement | **En ligne sur Vercel** : https://focusdeck-one.vercel.app (projet `focusdeck`, équipe `noahdevelopment7-4318s-projects`, déploiement automatique à chaque push). `vercel.json` : SPA, cache, CSP stricte et en-têtes de sécurité vérifiés en production |
 | Tâches avancées (L4 ✅) | Projets (nom, couleur accessible, client, archivage), tâche active liée au cycle Focus et enregistrée sur la session, compteur de pomodoros réalisés / estimés avec alerte de dépassement, report au lendemain (manuel + automatique), annulation de suppression par toast, saisie rapide `#projet ~3`, mode plein écran concentration (`F`), rapport du jour (Markdown, PDF, écran) groupé par projet avec temps par projet |
-| Persistance | `localStorage` versionné (`focusdeck:v2:*`, migration testée depuis le format v1 de la v0.1 : `src/data/migrations.ts`), validation de toutes les lectures, sync multi-onglets, rétention 30 jours |
-| Qualité (L0 ✅) | TS strict, ESLint strict, 176 tests Vitest dont RLS sur Postgres réel (couverture 94 %, `utils/` 98 %, seuils bloquants), 11 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (168 kB / 180 kB), Lighthouse CI, CI GitHub Actions |
+| Historique (L3 ✅) | Page `/stats` : temps de focus par jour (7/30 jours), carte de chaleur annuelle, série de jours consécutifs, moyenne et meilleur jour, répartition par projet, objectif quotidien de cycles avec jauge (aussi sur le tableau de bord) ; graphiques SVG/HTML faits main, navigables au clavier, avec tableau de données. Page `/rapports` : jour, semaine, mois ou plage libre, filtre projet, aperçu, export Markdown, PDF et CSV (`;`, BOM UTF-8, formules neutralisées). Domaine pur `src/domain/` (totaux identiques entre statistiques et rapports, testés) |
+| Persistance | `localStorage` versionné (`focusdeck:v2:*`, migration testée depuis le format v1 de la v0.1 : `src/data/migrations.ts`), validation de toutes les lectures, sync multi-onglets, rétention 365 jours plafonnée à ~2 Mo (lot L3) |
+| Qualité (L0 ✅) | TS strict, ESLint strict, 203 tests Vitest dont RLS sur Postgres réel (couverture 94 %, `utils/` 98 %, `domain/` 100 %, seuils bloquants), 13 parcours e2e Playwright avec axe-core et CSP de production, budget de taille (173 kB / 180 kB), Lighthouse CI, CI GitHub Actions |
 
-Limites connues : pas de compte ni de sync multi-appareils ; historique limité au jour
-courant dans l'interface ; notifications non fiables sur mobile (pas de Service
+Limites connues : notifications non fiables sur mobile (pas de Service
 Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais non branchés (projet Supabase à créer).
 
 ## 4. Exigences fonctionnelles
@@ -73,7 +73,7 @@ Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais 
 | EF-T04 | Le minuteur est synchronisé entre appareils connectés (démarrer sur l'ordinateur, voir le décompte sur le téléphone) | S | ✅ L2* |
 | EF-T05 | Sons au choix (3 carillons minimum + silencieux), volume, son d'ambiance optionnel (bruit brun) | C | L5 |
 | EF-T06 | Mode « plein écran concentration » : cadran seul, tout le reste masqué | C | ✅ L4 |
-| EF-T07 | Objectif quotidien de cycles (ex. 8) avec jauge | S | L3 |
+| EF-T07 | Objectif quotidien de cycles (ex. 8) avec jauge | S | ✅ L3 |
 
 ### 4.2 Micro-objectifs
 
@@ -92,9 +92,9 @@ Worker) ; thème sombre uniquement ; français uniquement ; comptes prêts mais 
 | ID | Exigence | Prio | Lot |
 | --- | --- | --- | --- |
 | EF-R01 | Rapport du jour en Markdown et PDF | M | ✅ |
-| EF-R02 | Rapport sur une **période** (jour, semaine, mois, plage libre), filtrable par projet | M | L3 |
-| EF-R03 | Page Statistiques : temps de focus par jour (barres), carte de chaleur annuelle, série de jours consécutifs, répartition par projet | M | L3 |
-| EF-R04 | Export CSV des sessions (date, début, fin, mode, durée, tâche, projet) | S | L3 |
+| EF-R02 | Rapport sur une **période** (jour, semaine, mois, plage libre), filtrable par projet | M | ✅ L3 |
+| EF-R03 | Page Statistiques : temps de focus par jour (barres), carte de chaleur annuelle, série de jours consécutifs, répartition par projet | M | ✅ L3 |
+| EF-R04 | Export CSV des sessions (date, début, fin, mode, durée, tâche, projet) | S | ✅ L3 |
 | EF-R05 | PDF personnalisable : nom/logo du freelance, nom du client, mention libre | S | L6 |
 | EF-R06 | Envoi automatique du rapport quotidien par e-mail à une heure choisie | C | L8 |
 | EF-R07 | Lien de partage en lecture seule d'un rapport (expirable) | C | L8 |
@@ -316,7 +316,7 @@ Chaque lot = une branche, une PR, mergeable seul. Un prompt dédié existe dans
 | **L0** ✅ | Socle qualité : CI, e2e Playwright, couverture, axe-core | QUAL-2..4, A11Y-5 | — | `00-socle-qualite.md` |
 | **L1** ✅ | Couche de persistance (repository) + routage, sans changement visible | §6.2, EF-X07 | L0 | `01-persistance-et-routage.md` |
 | **L2** ✅* | Supabase : schéma, RLS, auth, sync hors ligne, minuteur multi-appareils | EF-C02..C06, EF-T04, SEC-1/2 | L1 | `02-supabase-auth-sync.md` |
-| **L3** | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |
+| **L3** ✅ | Historique, statistiques, rapports de période, export CSV, objectif quotidien | EF-R02..R04, EF-T07 | L1 (L2 conseillé) | `03-statistiques-rapports.md` |
 | **L4** ✅ | Tâches avancées : projets, tâche active, estimations, report, annulation | EF-O02..O07 (sauf O04), EF-T03, EF-T06 | L1 | `04-taches-avancees.md` |
 | **L5** | PWA, notifications SW, thème clair, i18n, sons, onboarding | EF-X02..X06, EF-T05 | L1 | `05-pwa-theme-i18n.md` |
 | **L6** | SaaS : plans, Stripe, droits serveur, landing, PDF personnalisé | EF-S01..S06, EF-R05, SEC-5 | L2, L3 | `06-saas-stripe.md` |

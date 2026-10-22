@@ -15,7 +15,7 @@ npm run dev         # Vite, http://localhost:5173
 npm run typecheck   # tsc -b (strict, noUncheckedIndexedAccess, exactOptionalPropertyTypes)
 npm run lint        # ESLint (typescript-eslint strict + react-hooks v7)
 npm test            # Vitest (jsdom)
-npm run coverage    # Vitest + couverture avec seuils (global 70 %, src/utils 90 %)
+npm run coverage    # Vitest + couverture avec seuils (global 70 %, src/utils et src/domain 90 %)
 npm run build       # typecheck + build de production
 npm run size        # budget JS initial ≤ 180 kB gzip (après build)
 npm run check       # typecheck + lint + coverage + build + size
@@ -61,6 +61,8 @@ src/
 ├── observability/              # Sentry (erreurs) et Vercel Analytics, chargés à la demande ;
 │                               # privacy.ts filtre toute donnée personnelle avant envoi
 ├── hooks/                      # Raccourcis clavier, jour courant, titre du document
+├── domain/                     # Logique pure de l'historique (L3) : stats.ts (agrégats, séries,
+│                               # carte de chaleur, objectif), periods.ts (périodes de rapport)
 ├── types/index.ts              # Types partagés
 └── utils/                      # Logique pure et testée : timer, logs, report, pdf, validation,
                                 # tasks (report, annulation, pomodoros), projects, quickEntry…
@@ -99,6 +101,16 @@ Règles :
   Le nombre de pomodoros d'une tâche est **dérivé** du journal (`countPomodoros`), jamais
   stocké. Un projet ne se supprime pas, il s'archive. `tasks.project_id` / `sessions.task_id`
   n'ont pas de clé étrangère en base (une référence orpheline bloquerait la file de sync).
+- **Historique (L3)** : statistiques et rapports passent par `domain/stats.ts` et
+  `buildReport(range, filters, data)` (`utils/report.ts`, le rapport du jour en est un cas
+  particulier) : un seul calcul, donc des totaux identiques partout (test de concordance dans
+  `domain/stats.test.ts`). Calculs lourds toujours dans un `useMemo` sur les données, jamais
+  sur le temps du minuteur (test « PERF-4 » dans `pages/history.test.tsx`). Rétention locale
+  365 jours + plafond `LOG_MAX_SIZE` (`pruneLogs`) ; la sync ne propage que la suppression du
+  **jour courant** (« Effacer l'historique du jour ») : tout autre retrait est un élagage local.
+- **Graphiques** : charger le skill `dataviz` avant d'en écrire un ; couleurs dans
+  `components/Stats/chartTheme.ts` (validées par son script), tableau de données alternatif
+  (`DataTable`), navigation clavier, aucun débordement horizontal à 390 px (infobulles ancrées).
 - **Suppression annulable** : `deleteTask`/`clearCompletedTasks` renvoient les tâches retirées
   avec leur position ; les passer à `restoreTasks` depuis l'action « Annuler » d'un toast
   (`components/ui/Toast`, `useToast().show(...)`). `focusAction: true` quand l'action vient

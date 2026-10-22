@@ -67,6 +67,7 @@ export function sanitizeSettings(input: unknown): TimerSettings {
     notificationsEnabled: readBoolean(input, 'notificationsEnabled', d.notificationsEnabled),
     analyticsEnabled: readBoolean(input, 'analyticsEnabled', d.analyticsEnabled),
     autoPostpone: readBoolean(input, 'autoPostpone', d.autoPostpone),
+    dailyGoal: readBoundedNumber(input, 'dailyGoal', d.dailyGoal),
   };
 }
 

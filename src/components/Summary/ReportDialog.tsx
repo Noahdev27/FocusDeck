@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Copy, FileDown, FileText, Loader2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { DailyReport, ReportFormat } from '../../types';
+import type { Report, ReportFormat } from '../../types';
 import { downloadText } from '../../utils/download';
 import { exportReportPdf } from '../../utils/pdf';
 import { reportFilename, reportToMarkdown } from '../../utils/report';
@@ -14,7 +14,7 @@ import { MarkdownPreview } from './MarkdownPreview';
 interface ReportDialogProps {
   open: boolean;
   onClose: () => void;
-  report: DailyReport;
+  report: Report;
 }
 
 type CopyState = 'idle' | 'copied' | 'error';

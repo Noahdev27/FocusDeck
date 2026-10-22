@@ -1,15 +1,31 @@
 import type { DayLog, SessionRecord } from '../types';
-import { LOG_RETENTION_DAYS } from './constants';
+import { LOG_MAX_SIZE, LOG_RETENTION_DAYS } from './constants';
 import { fromDateKey } from './format';
 
-/** Supprime les journaux plus anciens que la fenêtre de rétention. */
+/**
+ * Applique la rétention locale : jours plus anciens que la fenêtre (365 jours) retirés, puis,
+ * si le journal dépasse `maxSize` caractères JSON, les jours les plus anciens sont purgés
+ * jusqu'à repasser sous le plafond. Le jour `today` n'est jamais purgé.
+ */
 export function pruneLogs(
   logs: Record<string, DayLog>,
   today: string,
   retentionDays: number = LOG_RETENTION_DAYS,
+  maxSize: number = LOG_MAX_SIZE,
 ): Record<string, DayLog> {
   const limit = fromDateKey(today).getTime() - retentionDays * 86_400_000;
-  return Object.fromEntries(Object.entries(logs).filter(([date]) => fromDateKey(date).getTime() >= limit));
+  const kept = Object.entries(logs)
+    .filter(([date]) => fromDateKey(date).getTime() >= limit)
+    .sort(([a], [b]) => a.localeCompare(b));
+  // Taille calculée jour par jour : une seule sérialisation par jour, pas une par purge.
+  const sizes = kept.map(([date, log]) => date.length + JSON.stringify(log).length + 4);
+  let total = sizes.reduce((sum, size) => sum + size, 2);
+  let start = 0;
+  while (total > maxSize && start < kept.length - 1 && kept[start]?.[0] !== today) {
+    total -= sizes[start] ?? 0;
+    start += 1;
+  }
+  return Object.fromEntries(kept.slice(start));
 }
 
 /**

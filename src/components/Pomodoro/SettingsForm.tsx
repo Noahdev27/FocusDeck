@@ -64,6 +64,16 @@ export function SettingsForm() {
       </section>
 
       <section aria-label="Objectifs" className="mt-6">
+        <div className="grid grid-cols-2 gap-3">
+          <NumberStepper
+            label="Objectif quotidien"
+            unit="cycles"
+            value={settings.dailyGoal}
+            min={SETTINGS_LIMITS.dailyGoal.min}
+            max={SETTINGS_LIMITS.dailyGoal.max}
+            onChange={(dailyGoal) => updateSettings({ dailyGoal })}
+          />
+        </div>
         <Toggle
           label="Reporter automatiquement les objectifs en retard"
           description="Un objectif reporté mais non terminé revient dans la liste du jour. Désactivé, il est signalé « en retard »."

@@ -29,7 +29,7 @@ describe('Navigation', () => {
     fireEvent.click(within(desktopNav()).getByRole('link', { name: /Rapports/ }));
     expect(await screen.findByRole('heading', { name: 'Rapports' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('link', { name: /Retour au tableau de bord/ }));
+    fireEvent.click(within(desktopNav()).getByRole('link', { name: /Tableau de bord/ }));
     expect(await screen.findByRole('button', { name: /Pause/ })).toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });

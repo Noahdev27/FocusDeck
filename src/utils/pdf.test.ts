@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DailyReport, Task } from '../types';
+import type { Report, Task } from '../types';
 import { buildReportPdf } from './pdf';
 
 const task = (id: string, title: string, completed: boolean): Task => ({
@@ -13,8 +13,10 @@ const task = (id: string, title: string, completed: boolean): Task => ({
   plannedFor: null,
 });
 
-const baseReport: DailyReport = {
-  date: '2026-10-16',
+const baseReport: Report = {
+  from: '2026-10-16',
+  to: '2026-10-16',
+  scope: null,
   generatedAt: new Date(2026, 9, 16, 18, 0).getTime(),
   completedCycles: 3,
   focusSeconds: 4500,
@@ -25,6 +27,7 @@ const baseReport: DailyReport = {
   completionRate: 0.5,
   postponedTasks: [],
   projectGroups: [],
+  sessions: [],
 };
 
 /** Texte brut du PDF (flux non compressés par défaut dans jsPDF). */

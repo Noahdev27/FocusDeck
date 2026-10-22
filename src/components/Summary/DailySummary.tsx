@@ -5,12 +5,13 @@ import { buildDailyReport, groupLabel } from '../../utils/report';
 import { formatDuration } from '../../utils/format';
 import { Button, IconButton } from '../ui/Button';
 import { Card, CardHeader } from '../ui/Card';
+import { GoalGauge } from '../Stats/GoalGauge';
 import { ReportDialog } from './ReportDialog';
 import { SessionTimeline } from './SessionTimeline';
 import { StatCard } from './StatCard';
 
 export function DailySummary() {
-  const { todayLog, tasks, projects, clearTodayLog } = useFocus();
+  const { todayLog, tasks, projects, settings, clearTodayLog } = useFocus();
   // Horodatage de génération, fixé à l'ouverture de la boîte de dialogue du rapport.
   const [reportOpenedAt, setReportOpenedAt] = useState<number | null>(null);
   const report = useMemo(
@@ -75,6 +76,10 @@ export function DailySummary() {
           accent="#60a5fa"
         />
       </div>
+
+      <section aria-label="Objectif du jour" className="mt-5 max-w-md">
+        <GoalGauge done={report.completedCycles} goal={settings.dailyGoal} compact />
+      </section>
 
       {report.projectGroups.length > 0 && (
         <section aria-label="Temps par projet" className="mt-5">

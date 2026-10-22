@@ -1,7 +1,5 @@
 import type { DayLog, Project, SessionRecord, Task, TimerSettings, TimerSnapshot } from '../../types';
-import { LOG_RETENTION_DAYS } from '../../utils/constants';
 import { deepEqual } from '../../utils/equal';
-import { fromDateKey } from '../../utils/format';
 import { sanitizeLogs, sanitizeProjects, sanitizeSettings, sanitizeTasks, sanitizeTimerSnapshot } from '../../utils/validation';
 import type { OutboxEntry } from './types';
 
@@ -74,16 +72,12 @@ export function diffTasks(previous: readonly Task[], next: readonly Task[]): Out
 }
 
 /**
- * Sessions ajoutées → upsert ; sessions retirées → suppression, sauf pour les jours sortis
- * de la fenêtre de rétention locale : l'élagage du cache ne doit pas effacer l'historique
- * conservé sur le serveur.
+ * Sessions ajoutées → upsert ; sessions retirées → suppression **du jour courant seulement**.
+ * La seule suppression voulue par l'utilisateur est « Effacer l'historique du jour » ;
+ * tout autre retrait vient de l'élagage du cache local (âge ou plafond de taille, lot L3)
+ * et ne doit pas effacer l'historique conservé sur le serveur.
  */
-export function diffLogs(
-  previous: Record<string, DayLog>,
-  next: Record<string, DayLog>,
-  today: string,
-  retentionDays: number = LOG_RETENTION_DAYS,
-): OutboxEntry[] {
+export function diffLogs(previous: Record<string, DayLog>, next: Record<string, DayLog>, today: string): OutboxEntry[] {
   const index = (logs: Record<string, DayLog>) => {
     const map = new Map<string, { date: string; session: SessionRecord }>();
     for (const log of Object.values(logs)) for (const session of log.sessions) map.set(session.id, { date: log.date, session });
@@ -91,14 +85,13 @@ export function diffLogs(
   };
   const before = index(previous);
   const after = index(next);
-  const limit = fromDateKey(today).getTime() - retentionDays * 86_400_000;
   const entries: OutboxEntry[] = [];
   for (const [id, item] of after) {
     const old = before.get(id);
     if (!old || !same(old.session, item.session)) entries.push({ type: 'session', date: item.date, session: item.session });
   }
   for (const [id, item] of before) {
-    if (!after.has(id) && fromDateKey(item.date).getTime() >= limit) entries.push({ type: 'session-delete', id });
+    if (!after.has(id) && item.date === today) entries.push({ type: 'session-delete', id });
   }
   return entries;
 }
